@@ -29,6 +29,7 @@ CREATE TABLE IF NOT EXISTS incident_reports (
     coordinator_id INTEGER REFERENCES response_coordinators(coordinator_id),
     member_id INTEGER NOT NULL REFERENCES community_members(member_id),
     type TEXT NOT NULL CHECK(type IN('Fallen Tree', 'Flood', 'Fire', 'Power')),
+    address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
     report_date DATE NOT NULL CHECK (report_date >= '2020-01-01'),
