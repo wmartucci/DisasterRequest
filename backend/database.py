@@ -70,3 +70,32 @@ def run_change(sql, params=None):
         raise
     finally:
         conn.close()
+
+#--------------------------------------------------------------------------------#
+# DATABASE FUNCTIONS FOR INTEGRATING WITH WITH THE WEB APP
+#--------------------------------------------------------------------------------#
+
+# ---------- READ (the R in CRUD) ----------
+def get_volunteers():
+    # retrieves all volunteers from the database.
+    return run_query("SELECT * FROM volunteers;")
+
+def get_community_members():
+    # retrieves all community members from the database.
+    return run_query("SELECT * FROM community_members;")
+
+def get_incident_reports():
+    # retrieves all incident reports from the database.
+    return run_query("SELECT * FROM incident_reports;")
+
+def search_community_members_by_name(first, last):
+    # searches for community members by first and last name (case-insensitive).
+    return run_query("SELECT first_name, last_name, city, state FROM community_members", 
+                     "WHERE first_name ILIKE %s OR last_name ILIKE %s;", 
+                     (f"%{first}%", f"%{last}%"))
+
+def search_incident_reports_by_id(report_id):
+    # searches for incident reports by report_id (case-insensitive).
+    return run_query("SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",))
+
+# --------- CREATE (the C in CRUD) ----------

@@ -40,4 +40,14 @@ CREATE TABLE IF NOT EXISTS incident_reports (
     location GEOMETRY(POINT, 4326)
 );
 
+--danijelp--
+CREATE TABLE IF NOT EXISTS posts (
+    post_id SERIAL PRIMARY KEY,
+    post_title VARCHAR(50) NOT NULL,
+    post_content VARCHAR(3000) NOT NULL,
+    media VARCHAR(70),
+    post_date TIMESTAMP DEFAULT CURRENT_TIMESTAMP,
+    member_id INTEGER REFERENCES community_members(member_id)
+    );
+
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);
