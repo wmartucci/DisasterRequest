@@ -408,3 +408,43 @@ footer {
         transition: none !important;
     }
 }
+/* Incident reporting form */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+.form-grid label {
+    display: flex;
+    flex-direction: column;
+    gap: 10px;
+    font-size: 14px;
+    font-weight: 600;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+.error-message {
+    color: #ffb4b4;
+}
+
+.success-message {
+    color: #8cf0d4;
+}
+
+@media (max-width: 650px) {
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+}
