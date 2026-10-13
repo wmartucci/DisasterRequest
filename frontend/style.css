@@ -1,4 +1,4 @@
-/* Base layout */
+/* Base */
 * {
     box-sizing: border-box;
 }
@@ -34,7 +34,7 @@ textarea:focus-visible {
     display: none !important;
 }
 
-/* Welcome banner */
+/* Banner */
 .hero {
     display: flex;
     justify-content: space-between;
@@ -111,7 +111,7 @@ textarea:focus-visible {
     font-weight: 600;
 }
 
-/* Main content */
+/* Content */
 main {
     width: min(1200px, calc(100% - 48px));
     margin: 40px auto;
@@ -149,6 +149,7 @@ h3 {
     border-radius: 14px;
     background: #131d20;
     box-shadow: 0 8px 28px #00000030;
+    overflow-wrap: anywhere;
 }
 
 .section-heading + .panel {
@@ -183,7 +184,19 @@ h3 {
     background: #204044;
 }
 
-/* Search filters and form fields */
+.delete-button {
+    padding: 9px 16px;
+    border: 1px solid #7d4545;
+    border-radius: 7px;
+    color: #ffc1c1;
+    background: #3a2024;
+}
+
+.delete-button:hover {
+    background: #512b30;
+}
+
+/* Search and forms */
 .filters {
     display: flex;
     align-items: flex-end;
@@ -193,8 +206,12 @@ h3 {
 }
 
 .filters label {
-    display: flex;
     flex: 1 1 180px;
+}
+
+.filters label,
+.form-grid label {
+    display: flex;
     flex-direction: column;
     gap: 10px;
     min-width: 0;
@@ -228,7 +245,24 @@ textarea {
     resize: vertical;
 }
 
-/* Incident tables */
+.form-grid {
+    display: grid;
+    grid-template-columns: repeat(2, minmax(0, 1fr));
+    gap: 24px;
+    margin-bottom: 28px;
+}
+
+.full-width {
+    grid-column: 1 / -1;
+}
+
+.form-actions {
+    display: flex;
+    flex-wrap: wrap;
+    gap: 14px;
+}
+
+/* Tables */
 .table-wrapper {
     overflow-x: auto;
 }
@@ -262,7 +296,7 @@ tbody tr:last-child td {
     border-bottom: 0;
 }
 
-/* Status labels */
+/* Status badges */
 .status-badge {
     display: inline-block;
     padding: 6px 12px;
@@ -291,13 +325,12 @@ tbody tr:last-child td {
     background: #173e34;
 }
 
-/* Selected incident details */
+/* Incident details */
 #incident-details {
     margin-top: 28px;
     padding: 24px;
     border-left: 4px solid #5eead4;
     border-radius: 6px;
-    color: #edf6f5;
     background: #142c2e;
     overflow-wrap: anywhere;
 }
@@ -314,19 +347,41 @@ tbody tr:last-child td {
     margin-top: 12px;
 }
 
-#search-message {
+/* Messages and posts */
+#search-message,
+.post-reference,
+footer {
     color: #a5bbbf;
 }
 
-/* Footer */
+.error-message {
+    color: #ffb4b4;
+}
+
+.success-message {
+    color: #8cf0d4;
+}
+
+.error-message:empty,
+.success-message:empty {
+    display: none;
+}
+
+.post-reference {
+    font-size: 13px;
+}
+
+.post-content {
+    white-space: pre-wrap;
+}
+
 footer {
     padding: 0 24px 28px;
-    color: #a5bbbf;
     font-size: 13px;
     text-align: center;
 }
 
-/* Tablet layout */
+/* Tablet */
 @media (max-width: 900px) {
     .hero {
         align-items: flex-start;
@@ -339,7 +394,7 @@ footer {
     }
 }
 
-/* Mobile layout */
+/* Mobile */
 @media (max-width: 650px) {
     .hero {
         gap: 24px;
@@ -386,6 +441,11 @@ footer {
         flex: auto;
     }
 
+    .form-grid {
+        grid-template-columns: 1fr;
+        gap: 18px;
+    }
+
     input,
     select,
     textarea {
@@ -402,49 +462,8 @@ footer {
     }
 }
 
-/* Respect reduced-motion settings */
 @media (prefers-reduced-motion: reduce) {
     button {
         transition: none !important;
-    }
-}
-/* Incident reporting form */
-.form-grid {
-    display: grid;
-    grid-template-columns: repeat(2, minmax(0, 1fr));
-    gap: 24px;
-    margin-bottom: 28px;
-}
-
-.form-grid label {
-    display: flex;
-    flex-direction: column;
-    gap: 10px;
-    font-size: 14px;
-    font-weight: 600;
-}
-
-.full-width {
-    grid-column: 1 / -1;
-}
-
-.form-actions {
-    display: flex;
-    flex-wrap: wrap;
-    gap: 14px;
-}
-
-.error-message {
-    color: #ffb4b4;
-}
-
-.success-message {
-    color: #8cf0d4;
-}
-
-@media (max-width: 650px) {
-    .form-grid {
-        grid-template-columns: 1fr;
-        gap: 18px;
     }
 }
