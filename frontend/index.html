@@ -1,274 +1,86 @@
-<!DOCTYPE html>
+<!doctype html>
 <html lang="en">
-<head>
-    <meta charset="UTF-8">
-    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <meta name="color-scheme" content="dark" />
     <title>Disaster Response | Community Hub</title>
-    <link rel="stylesheet" href="style.css">
+    <link rel="stylesheet" href="style.css" />
     <script src="main.js" defer></script>
-</head>
-<body>
+  </head>
+  <body>
+    <a class="skip-link" href="#main">Skip to content</a>
     <header class="hero">
+      <div class="hero-inner">
         <div>
-            <p class="brand-label">COMMUNITY RESPONSE HUB</p>
-            <h1>When it matters,<br>help comes together.</h1>
-            <p class="hero-description">
-                Report incidents. Connect communities.
-                Coordinate a faster response.
-            </p>
+          <p class="eyebrow">COMMUNITY RESPONSE HUB</p>
+          <h1>When it matters,<br />help comes together<span>.</span></h1>
+          <p>
+            Report incidents. Connect communities. Coordinate a faster response.
+          </p>
         </div>
-        <span class="demo-badge">
-            Demo data · Database not connected
-        </span>
+        <div class="mode-card">
+          <span class="mode-badge">DEMO MODE</span>
+          <p>Frontend preview</p>
+          <small>Sample records · No database connection</small
+          ><button id="reset-demo" class="text-button" type="button">
+            Reset sample data
+          </button>
+        </div>
+      </div>
     </header>
-
     <nav class="navigation" aria-label="Main navigation">
-        <button type="button" data-screen="home" class="active">
-            Home
-        </button>
-        <button type="button" data-screen="browse">
-            Browse Incidents
-        </button>
-        <button type="button" data-screen="report">
-            Report an Incident
-        </button>
-        <button type="button" data-screen="manage">
-            Manage Incidents
-        </button>
-        <button type="button" data-screen="posts">
-            Community Posts
-        </button>
+      <div class="nav-inner">
+        <button type="button" data-screen="home">Home</button
+        ><button type="button" data-screen="browse">Incidents</button
+        ><button type="button" data-screen="report">Report an Incident</button
+        ><button type="button" data-screen="response">Response Desk</button
+        ><button type="button" data-screen="resources">Resources</button
+        ><button type="button" data-screen="people">People &amp; Units</button
+        ><button type="button" data-screen="posts">Community Posts</button>
+      </div>
     </nav>
-
-    <main>
-        <p id="app-error" class="error-message" role="alert"></p>
-
-        <section id="home" class="screen">
-            <div class="section-heading">
-                <div>
-                    <h2>Community incident overview</h2>
-                    <p>Follow reports and their current response status.</p>
-                </div>
-                <button type="button" class="primary-button"
-                        data-screen="report">
-                    + Report an Incident
-                </button>
-            </div>
-
-            <div class="panel">
-                <h3>Recent Incidents</h3>
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th scope="col">Report ID</th>
-                                <th scope="col">Type</th>
-                                <th scope="col">Location</th>
-                                <th scope="col">Status</th>
-                            </tr>
-                        </thead>
-                        <tbody id="recent-incidents"></tbody>
-                    </table>
-                </div>
-            </div>
-        </section>
-
-        <section id="browse" class="screen" hidden>
-            <div class="section-heading">
-                <div>
-                    <h2>Browse Incidents</h2>
-                    <p>Find reports by city, description, type, or status.</p>
-                </div>
-            </div>
-
-            <div class="panel">
-                <form id="search-form" class="filters">
-                    <label for="search-text">
-                        Search city or description
-                        <input id="search-text" type="search"
-                               placeholder="Try Asheville or tree">
-                    </label>
-
-                    <label for="type-filter">
-                        Incident type
-                        <select id="type-filter">
-                            <option value="">All types</option>
-                            <option>Fallen Tree</option>
-                            <option>Flood</option>
-                            <option>Fire</option>
-                            <option>Power</option>
-                        </select>
-                    </label>
-
-                    <label for="status-filter">
-                        Status
-                        <select id="status-filter">
-                            <option value="">All statuses</option>
-                            <option>Pending Assistance</option>
-                            <option>Help Requested</option>
-                            <option>Unit in Response</option>
-                            <option>Resolved</option>
-                        </select>
-                    </label>
-
-                    <button type="submit" class="primary-button">
-                        Search
-                    </button>
-                    <button type="reset" class="secondary-button">
-                        Clear
-                    </button>
-                </form>
-
-                <p id="search-message" role="status"></p>
-
-                <div class="table-wrapper">
-                    <table>
-                        <thead>
-                            <tr>
-                                <th scope="col">Report ID</th>
-                                <th scope="col">Type</th>
-                                <th scope="col">Location</th>
-                                <th scope="col">Status</th>
-                                <th scope="col">Action</th>
-                            </tr>
-                        </thead>
-                        <tbody id="search-results"></tbody>
-                    </table>
-                </div>
-
-                <div id="incident-details" hidden></div>
-            </div>
-        </section>
-
-        <section id="report" class="screen" hidden>
-            <div class="section-heading">
-                <div>
-                    <h2>Report an Incident</h2>
-                    <p>Describe the incident and where assistance is needed.</p>
-                </div>
-            </div>
-
-            <div class="panel">
-                <form id="incident-form">
-                    <div class="form-grid">
-                        <label for="incident-type">
-                            Incident type
-                            <select id="incident-type" required>
-                                <option value="">Select a type</option>
-                                <option>Fallen Tree</option>
-                                <option>Flood</option>
-                                <option>Fire</option>
-                                <option>Power</option>
-                            </select>
-                        </label>
-
-                        <label for="incident-city">
-                            City
-                            <input id="incident-city" type="text"
-                                   placeholder="Asheville"
-                                   maxlength="100" required>
-                        </label>
-
-                        <label for="incident-address">
-                            Street address
-                            <input id="incident-address" type="text"
-                                   placeholder="1070 Tunnel Rd"
-                                   maxlength="200" required>
-                        </label>
-
-                        <label for="incident-state">
-                            State
-                            <input id="incident-state" type="text"
-                                   placeholder="North Carolina"
-                                   maxlength="100" required>
-                        </label>
-
-                        <label for="incident-description" class="full-width">
-                            Description
-                            <textarea id="incident-description" rows="5"
-                                      placeholder="Describe what happened."
-                                      maxlength="3000" required></textarea>
-                        </label>
-                    </div>
-
-                    <div class="form-actions">
-                        <button type="submit" class="primary-button">
-                            Submit Report
-                        </button>
-                        <button type="reset" class="secondary-button">
-                            Clear Form
-                        </button>
-                    </div>
-
-                    <p id="report-error" class="error-message"
-                       role="alert"></p>
-                    <p id="report-success" class="success-message"
-                       role="status"></p>
-                </form>
-            </div>
-        </section>
-
-        <section id="manage" class="screen" hidden>
-            <div class="section-heading">
-                <div>
-                    <h2>Manage Incidents</h2>
-                    <p>Select a report and update its response status.</p>
-                </div>
-            </div>
-
-            <div class="panel">
-                <form id="manage-form">
-                    <div class="form-grid">
-                        <label for="manage-report">
-                            Incident report
-                            <select id="manage-report" required>
-                                <option value="">Select a report</option>
-                            </select>
-                        </label>
-
-                        <label for="manage-status">
-                            New status
-                            <select id="manage-status" required>
-                                <option>Pending Assistance</option>
-                                <option>Help Requested</option>
-                                <option>Unit in Response</option>
-                                <option>Resolved</option>
-                            </select>
-                        </label>
-                    </div>
-
-                    <p id="manage-current" role="status"></p>
-
-                    <button type="submit" class="primary-button">
-                        Save Status
-                    </button>
-
-                    <p id="manage-error" class="error-message"
-                       role="alert"></p>
-                    <p id="manage-success" class="success-message"
-                       role="status"></p>
-                </form>
-            </div>
-        </section>
-
-        <section id="posts" class="screen" hidden>
-            <div class="section-heading">
-                <div>
-                    <h2>Community Posts</h2>
-                    <p>View community updates and remove outdated posts.</p>
-                </div>
-            </div>
-
-            <p id="post-message" class="success-message" role="status"></p>
-            <div id="posts-list"></div>
-        </section>
+    <main id="main" tabindex="-1">
+      <p id="app-error" class="message error" role="alert" hidden></p>
+      <div id="screens"></div>
+      <noscript
+        ><p class="message error">
+          Enable JavaScript to use the frontend demo.
+        </p></noscript
+      >
     </main>
-
+    <dialog id="details-dialog" aria-labelledby="details-heading">
+      <div class="dialog-heading">
+        <h2 id="details-heading">Details</h2>
+        <button type="button" id="close-details" class="secondary-button">
+          Close
+        </button>
+      </div>
+      <div id="details-content"></div>
+    </dialog>
+    <dialog id="confirm-dialog" aria-labelledby="confirm-heading">
+      <p class="eyebrow">PLEASE CONFIRM</p>
+      <h2 id="confirm-heading">Delete this post?</h2>
+      <p id="confirm-description"></p>
+      <div class="form-actions">
+        <button
+          type="button"
+          id="confirm-cancel"
+          class="secondary-button"
+          autofocus
+        >
+          Cancel</button
+        ><button type="button" id="confirm-accept" class="delete-button">
+          Delete post
+        </button>
+      </div>
+    </dialog>
     <footer>
-        <p>
-            Interface demo · Sample records ·
-            Changes reset when the page reloads.
-        </p>
+      <p>Disaster Request and Resource Management System</p>
+      <p id="storage-note">
+        Frontend demo · Sample data saved in this browser when available · No
+        database connection
+      </p>
     </footer>
-</body>
+  </body>
 </html>
