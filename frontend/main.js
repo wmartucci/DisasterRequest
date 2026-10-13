@@ -460,7 +460,3 @@ initializeApp().catch((error) => {
             "the reporting and Manage Incidents forms.";
     }
 });
-
-    document.getElementById("search-message").textContent =
-        "Unable to load incidents. Please reload the page.";
-});
