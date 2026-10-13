@@ -260,6 +260,93 @@ async function initializeApp() {
         });
 
     // Display all sample records initially.
+    // Add an incident to the temporary demo data.
+const incidentForm = document.getElementById("incident-form");
+const reportError = document.getElementById("report-error");
+const reportSuccess = document.getElementById("report-success");
+
+incidentForm.addEventListener("submit", (event) => {
+    event.preventDefault();
+
+    reportError.textContent = "";
+    reportSuccess.textContent = "";
+
+    const type = document.getElementById("incident-type").value;
+    const city = document.getElementById("incident-city").value.trim();
+    const address = document.getElementById("incident-address").value.trim();
+    const state = document.getElementById("incident-state").value.trim();
+    const description = document.getElementById("incident-description")
+        .value.trim();
+
+    const allowedTypes = ["Fallen Tree", "Flood", "Fire", "Power"];
+
+    if (
+        !allowedTypes.includes(type) ||
+        !city ||
+        !address ||
+        !state ||
+        !description
+    ) {
+        reportError.textContent =
+            "Please complete every field. Spaces alone are not valid.";
+        return;
+    }
+
+    // Use local date and time for the demo report.
+    const now = new Date();
+    const pad = (number) => String(number).padStart(2, "0");
+
+    const reportDate =
+        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+    const reportTime =
+        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+    const nextId =
+        Math.max(0, ...incidents.map((incident) => incident.report_id)) + 1;
+
+    const newIncident = {
+        report_id: nextId,
+        type,
+        city,
+        address,
+        state,
+        description,
+        status: "Pending Assistance",
+        report_date: reportDate,
+        report_time: reportTime
+    };
+
+    incidents.push(newIncident);
+
+    // Refresh the homepage with the newest incidents.
+    const updatedRecentIncidents = [...incidents]
+        .sort((a, b) => {
+            const first = `${a.report_date}T${a.report_time}`;
+            const second = `${b.report_date}T${b.report_time}`;
+            return second.localeCompare(first);
+        })
+        .slice(0, 5);
+
+    renderIncidents(
+        document.getElementById("recent-incidents"),
+        updatedRecentIncidents
+    );
+
+    // Refresh Browse using its current search filters.
+    searchIncidents();
+
+    incidentForm.reset();
+
+    reportSuccess.textContent =
+        `Demo report #${nextId} added. View it in Home or Browse Incidents. ` +
+        "It will disappear when you refresh the page.";
+});
+
+incidentForm.addEventListener("reset", () => {
+    reportError.textContent = "";
+    reportSuccess.textContent = "";
+});
     searchIncidents();
     showScreen("home");
 }
