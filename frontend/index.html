@@ -219,19 +219,54 @@
             </div>
         </section>
 
-        <section id="manage" class="screen" hidden>
+       <section id="manage" class="screen" hidden>
+    <div class="section-heading">
+        <div>
             <h2>Manage Incidents</h2>
-            <div class="panel">
-                <p>Select an incident and update its response status.</p>
-            </div>
-        </section>
+            <p>Select a report and update its response status.</p>
+        </div>
+    </div>
 
-        <section id="posts" class="screen" hidden>
-            <h2>Community Posts</h2>
-            <div class="panel">
-                <p>Community updates and post management will appear here.</p>
+    <div class="panel">
+        <form id="manage-form">
+            <div class="form-grid">
+                <label for="manage-report">
+                    Incident report
+                    <select id="manage-report" required>
+                        <option value="">Select a report</option>
+                    </select>
+                </label>
+
+                <label for="manage-status">
+                    New status
+                    <select id="manage-status" required>
+                        <option value="Pending Assistance">
+                            Pending Assistance
+                        </option>
+                        <option value="Help Requested">
+                            Help Requested
+                        </option>
+                        <option value="Unit in Response">
+                            Unit in Response
+                        </option>
+                        <option value="Resolved">Resolved</option>
+                    </select>
+                </label>
             </div>
-        </section>
+
+            <p id="manage-current" role="status">
+                Select a report to see its current status.
+            </p>
+
+            <button type="submit" class="primary-button">
+                Save Status
+            </button>
+
+            <p id="manage-error" class="error-message" role="alert"></p>
+            <p id="manage-success" class="success-message" role="status"></p>
+        </form>
+    </div>
+</section>
     </main>
 
     <footer>
