@@ -150,6 +150,69 @@
         </section>
 
         <section id="report" class="screen" hidden>
+    <div class="section-heading">
+        <div>
+            <h2>Report an Incident</h2>
+            <p>Describe the incident and where assistance is needed.</p>
+        </div>
+    </div>
+
+    <div class="panel">
+        <form id="incident-form">
+            <div class="form-grid">
+                <label for="incident-type">
+                    Incident type
+                    <select id="incident-type" required>
+                        <option value="">Select a type</option>
+                        <option value="Fallen Tree">Fallen Tree</option>
+                        <option value="Flood">Flood</option>
+                        <option value="Fire">Fire</option>
+                        <option value="Power">Power</option>
+                    </select>
+                </label>
+
+                <label for="incident-city">
+                    City
+                    <input id="incident-city" type="text"
+                           placeholder="Asheville" maxlength="100" required>
+                </label>
+
+                <label for="incident-address">
+                    Street address
+                    <input id="incident-address" type="text"
+                           placeholder="1070 Tunnel Rd"
+                           maxlength="200" required>
+                </label>
+
+                <label for="incident-state">
+                    State
+                    <input id="incident-state" type="text"
+                           placeholder="North Carolina"
+                           maxlength="100" required>
+                </label>
+
+                <label for="incident-description" class="full-width">
+                    Description
+                    <textarea id="incident-description" rows="5"
+                              placeholder="Describe what happened."
+                              maxlength="3000" required></textarea>
+                </label>
+            </div>
+
+            <div class="form-actions">
+                <button type="submit" class="primary-button">
+                    Submit Report
+                </button>
+                <button type="reset" class="secondary-button">
+                    Clear Form
+                </button>
+            </div>
+
+            <p id="report-error" class="error-message" role="alert"></p>
+            <p id="report-success" class="success-message" role="status"></p>
+        </form>
+    </div>
+</section>
             <h2>Report an Incident</h2>
             <div class="panel">
                 <p>We will build the incident reporting form here next.</p>
