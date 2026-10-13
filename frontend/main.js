@@ -1,6 +1,4 @@
-// UI actions + DB API interaction
-// Temporary sample data.
-// Later, we will load these records from the backend.
+// Temporary demo records. Changes reset when the page reloads.
 const sampleIncidents = [
     {
         report_id: 25,
@@ -48,12 +46,6 @@ const sampleIncidents = [
     }
 ];
 
-// Data access function.
-// We will replace its contents with a backend request later.
-async function getIncidents() {
-    return sampleIncidents;
-}
-
 const statusClasses = {
     "Pending Assistance": "status-pending",
     "Help Requested": "status-requested",
@@ -61,7 +53,22 @@ const statusClasses = {
     "Resolved": "status-resolved"
 };
 
-// Create a table cell safely using textContent.
+// Later, this function will request records from the backend.
+async function getIncidents() {
+    return sampleIncidents;
+}
+
+// Find an HTML element and identify missing elements clearly.
+function getElement(id) {
+    const element = document.getElementById(id);
+
+    if (!element) {
+        throw new Error(`Missing HTML element: ${id}`);
+    }
+
+    return element;
+}
+
 function createCell(text) {
     const cell = document.createElement("td");
     cell.textContent = text;
@@ -74,18 +81,15 @@ function createStatusCell(status) {
 
     badge.classList.add("status-badge");
 
-    const statusClass = statusClasses[status];
-    if (statusClass) {
-        badge.classList.add(statusClass);
+    if (statusClasses[status]) {
+        badge.classList.add(statusClasses[status]);
     }
 
     badge.textContent = status;
     cell.appendChild(badge);
-
     return cell;
 }
 
-// Display incident records in either table.
 function renderIncidents(tableBody, incidents, includeActions = false) {
     tableBody.replaceChildren();
 
@@ -111,21 +115,21 @@ function renderIncidents(tableBody, incidents, includeActions = false) {
 
         if (includeActions) {
             const actionCell = document.createElement("td");
-            const viewButton = document.createElement("button");
+            const button = document.createElement("button");
 
-            viewButton.type = "button";
-            viewButton.className = "secondary-button";
-            viewButton.textContent = "View";
-            viewButton.setAttribute(
+            button.type = "button";
+            button.className = "secondary-button";
+            button.textContent = "View";
+            button.setAttribute(
                 "aria-label",
                 `View report ${incident.report_id}`
             );
 
-            viewButton.addEventListener("click", () => {
+            button.addEventListener("click", () => {
                 showIncidentDetails(incident);
             });
 
-            actionCell.appendChild(viewButton);
+            actionCell.appendChild(button);
             row.appendChild(actionCell);
         }
 
@@ -133,9 +137,8 @@ function renderIncidents(tableBody, incidents, includeActions = false) {
     });
 }
 
-// Show the selected incident underneath the search results.
 function showIncidentDetails(incident) {
-    const details = document.getElementById("incident-details");
+    const details = getElement("incident-details");
     details.replaceChildren();
 
     const heading = document.createElement("h3");
@@ -152,15 +155,16 @@ function showIncidentDetails(incident) {
 
     fields.forEach(([label, value]) => {
         const paragraph = document.createElement("p");
-        const labelElement = document.createElement("strong");
+        const strong = document.createElement("strong");
 
-        labelElement.textContent = `${label}: `;
-        paragraph.appendChild(labelElement);
+        strong.textContent = `${label}: `;
+        paragraph.appendChild(strong);
         paragraph.appendChild(document.createTextNode(value));
         details.appendChild(paragraph);
     });
 
     const closeButton = document.createElement("button");
+
     closeButton.type = "button";
     closeButton.className = "secondary-button";
     closeButton.textContent = "Close details";
@@ -173,7 +177,6 @@ function showIncidentDetails(incident) {
     details.hidden = false;
 }
 
-// Switch between application screens.
 function showScreen(screenId) {
     const selectedScreen = document.getElementById(screenId);
 
@@ -186,11 +189,11 @@ function showScreen(screenId) {
     });
 
     document.querySelectorAll(".navigation button").forEach((button) => {
-        const isActive = button.dataset.screen === screenId;
+        const active = button.dataset.screen === screenId;
 
-        button.classList.toggle("active", isActive);
+        button.classList.toggle("active", active);
 
-        if (isActive) {
+        if (active) {
             button.setAttribute("aria-current", "page");
         } else {
             button.removeAttribute("aria-current");
@@ -201,158 +204,262 @@ function showScreen(screenId) {
 async function initializeApp() {
     const incidents = await getIncidents();
 
-    // Connect navigation and the homepage reporting button.
+    // Search elements.
+    const searchForm = getElement("search-form");
+    const searchResults = getElement("search-results");
+    const searchMessage = getElement("search-message");
+
+    // Reporting elements.
+    const incidentForm = getElement("incident-form");
+    const reportError = getElement("report-error");
+    const reportSuccess = getElement("report-success");
+
+    // Manage Incidents elements.
+    const manageForm = getElement("manage-form");
+    const manageReport = getElement("manage-report");
+    const manageStatus = getElement("manage-status");
+    const manageCurrent = getElement("manage-current");
+    const manageError = getElement("manage-error");
+    const manageSuccess = getElement("manage-success");
+
+    function refreshHome() {
+        const recentIncidents = [...incidents]
+            .sort((a, b) => {
+                const first = `${a.report_date}T${a.report_time}`;
+                const second = `${b.report_date}T${b.report_time}`;
+                return second.localeCompare(first);
+            })
+            .slice(0, 5);
+
+        renderIncidents(
+            getElement("recent-incidents"),
+            recentIncidents
+        );
+    }
+
+    function searchIncidents() {
+        const text = getElement("search-text")
+            .value.trim().toLowerCase();
+
+        const type = getElement("type-filter").value;
+        const status = getElement("status-filter").value;
+
+        const matches = incidents.filter((incident) => {
+            const searchableText =
+                `${incident.city} ${incident.description}`.toLowerCase();
+
+            return (
+                searchableText.includes(text) &&
+                (!type || incident.type === type) &&
+                (!status || incident.status === status)
+            );
+        });
+
+        renderIncidents(searchResults, matches, true);
+
+        searchMessage.textContent =
+            `${matches.length} sample incident(s) found.`;
+
+        getElement("incident-details").hidden = true;
+    }
+
+    function showCurrentStatus() {
+        const incident = incidents.find(
+            (record) => String(record.report_id) === manageReport.value
+        );
+
+        if (!incident) {
+            manageCurrent.textContent =
+                "Select a report to see its current status.";
+            manageStatus.value = "Pending Assistance";
+            return;
+        }
+
+        manageStatus.value = incident.status;
+        manageCurrent.textContent =
+            `Report #${incident.report_id}: current status is ${incident.status}.`;
+    }
+
+    function populateManageReports() {
+        const selectedId = manageReport.value;
+
+        manageReport.replaceChildren();
+
+        const placeholder = document.createElement("option");
+        placeholder.value = "";
+        placeholder.textContent = "Select a report";
+        manageReport.appendChild(placeholder);
+
+        incidents.forEach((incident) => {
+            const option = document.createElement("option");
+
+            option.value = String(incident.report_id);
+            option.textContent =
+                `#${incident.report_id} — ${incident.type} — ${incident.city}`;
+
+            manageReport.appendChild(option);
+        });
+
+        manageReport.value = selectedId;
+        showCurrentStatus();
+    }
+
+    function refreshViews() {
+        refreshHome();
+        searchIncidents();
+        populateManageReports();
+    }
+
+    // Navigation.
     document.querySelectorAll("button[data-screen]").forEach((button) => {
         button.addEventListener("click", () => {
+            if (button.dataset.screen === "manage") {
+                populateManageReports();
+                manageError.textContent = "";
+                manageSuccess.textContent = "";
+            }
+
             showScreen(button.dataset.screen);
         });
     });
 
-    // Homepage: show the most recently reported incidents first.
-    const recentIncidents = [...incidents]
-        .sort((a, b) => {
-            const first = `${a.report_date}T${a.report_time}`;
-            const second = `${b.report_date}T${b.report_time}`;
-            return second.localeCompare(first);
-        })
-        .slice(0, 5);
+    // Search.
+    searchForm.addEventListener("submit", (event) => {
+        event.preventDefault();
+        searchIncidents();
+    });
 
-    renderIncidents(
-        document.getElementById("recent-incidents"),
-        recentIncidents
-    );
+    // Report an Incident.
+    incidentForm.addEventListener("submit", (event) => {
+        event.preventDefault();
 
-    const searchResults = document.getElementById("search-results");
-    const searchMessage = document.getElementById("search-message");
+        reportError.textContent = "";
+        reportSuccess.textContent = "";
 
-    function searchIncidents() {
-        const searchText = document.getElementById("search-text")
-            .value.trim().toLowerCase();
+        const type = getElement("incident-type").value;
+        const city = getElement("incident-city").value.trim();
+        const address = getElement("incident-address").value.trim();
+        const state = getElement("incident-state").value.trim();
+        const description = getElement("incident-description").value.trim();
 
-        const selectedType = document.getElementById("type-filter").value;
-        const selectedStatus = document.getElementById("status-filter").value;
+        const allowedTypes = ["Fallen Tree", "Flood", "Fire", "Power"];
 
-        const filteredIncidents = incidents.filter((incident) => {
-            const searchableText =
-                `${incident.city} ${incident.description}`.toLowerCase();
+        if (
+            !allowedTypes.includes(type) ||
+            !city ||
+            !address ||
+            !state ||
+            !description
+        ) {
+            reportError.textContent =
+                "Please complete every field. Spaces alone are not valid.";
+            return;
+        }
 
-            const matchesText = searchableText.includes(searchText);
-            const matchesType =
-                !selectedType || incident.type === selectedType;
-            const matchesStatus =
-                !selectedStatus || incident.status === selectedStatus;
+        const now = new Date();
+        const pad = (number) => String(number).padStart(2, "0");
 
-            return matchesText && matchesType && matchesStatus;
+        const reportDate =
+            `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+
+        const reportTime =
+            `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+
+        const nextId =
+            Math.max(0, ...incidents.map((incident) => incident.report_id)) + 1;
+
+        incidents.push({
+            report_id: nextId,
+            type,
+            address,
+            city,
+            state,
+            description,
+            status: "Pending Assistance",
+            report_date: reportDate,
+            report_time: reportTime
         });
 
-        renderIncidents(searchResults, filteredIncidents, true);
+        refreshViews();
+        incidentForm.reset();
 
-        searchMessage.textContent =
-            `${filteredIncidents.length} sample incident(s) found.`;
+        reportSuccess.textContent =
+            `Demo report #${nextId} added. View it in Home or Browse Incidents. ` +
+            "It will disappear when you refresh the page.";
+    });
 
-        document.getElementById("incident-details").hidden = true;
-    }
+    incidentForm.addEventListener("reset", () => {
+        reportError.textContent = "";
+        reportSuccess.textContent = "";
+    });
 
-    document.getElementById("search-form")
-        .addEventListener("submit", (event) => {
-            event.preventDefault();
-            searchIncidents();
-        });
+    // Manage Incidents.
+    manageReport.addEventListener("change", () => {
+        manageError.textContent = "";
+        manageSuccess.textContent = "";
+        showCurrentStatus();
+    });
 
-    // Display all sample records initially.
-    // Add an incident to the temporary demo data.
-const incidentForm = document.getElementById("incident-form");
-const reportError = document.getElementById("report-error");
-const reportSuccess = document.getElementById("report-success");
+    manageStatus.addEventListener("change", () => {
+        manageError.textContent = "";
+        manageSuccess.textContent = "";
+    });
 
-incidentForm.addEventListener("submit", (event) => {
-    event.preventDefault();
+    manageForm.addEventListener("submit", (event) => {
+        event.preventDefault();
 
-    reportError.textContent = "";
-    reportSuccess.textContent = "";
+        manageError.textContent = "";
+        manageSuccess.textContent = "";
 
-    const type = document.getElementById("incident-type").value;
-    const city = document.getElementById("incident-city").value.trim();
-    const address = document.getElementById("incident-address").value.trim();
-    const state = document.getElementById("incident-state").value.trim();
-    const description = document.getElementById("incident-description")
-        .value.trim();
+        const incident = incidents.find(
+            (record) => String(record.report_id) === manageReport.value
+        );
 
-    const allowedTypes = ["Fallen Tree", "Flood", "Fire", "Power"];
+        if (!incident) {
+            manageError.textContent = "Please select an incident report.";
+            return;
+        }
 
-    if (
-        !allowedTypes.includes(type) ||
-        !city ||
-        !address ||
-        !state ||
-        !description
-    ) {
-        reportError.textContent =
-            "Please complete every field. Spaces alone are not valid.";
-        return;
-    }
+        const newStatus = manageStatus.value;
 
-    // Use local date and time for the demo report.
-    const now = new Date();
-    const pad = (number) => String(number).padStart(2, "0");
+        if (!Object.prototype.hasOwnProperty.call(statusClasses, newStatus)) {
+            manageError.textContent = "Please select a valid status.";
+            return;
+        }
 
-    const reportDate =
-        `${now.getFullYear()}-${pad(now.getMonth() + 1)}-${pad(now.getDate())}`;
+        if (incident.status === newStatus) {
+            manageSuccess.textContent =
+                "This report already has that status. No change was made.";
+            return;
+        }
 
-    const reportTime =
-        `${pad(now.getHours())}:${pad(now.getMinutes())}:${pad(now.getSeconds())}`;
+        const previousStatus = incident.status;
+        incident.status = newStatus;
 
-    const nextId =
-        Math.max(0, ...incidents.map((incident) => incident.report_id)) + 1;
+        refreshViews();
 
-    const newIncident = {
-        report_id: nextId,
-        type,
-        city,
-        address,
-        state,
-        description,
-        status: "Pending Assistance",
-        report_date: reportDate,
-        report_time: reportTime
-    };
+        manageSuccess.textContent =
+            `Demo report #${incident.report_id} changed from ` +
+            `${previousStatus} to ${newStatus}. ` +
+            "This change will reset when you refresh the page.";
+    });
 
-    incidents.push(newIncident);
-
-    // Refresh the homepage with the newest incidents.
-    const updatedRecentIncidents = [...incidents]
-        .sort((a, b) => {
-            const first = `${a.report_date}T${a.report_time}`;
-            const second = `${b.report_date}T${b.report_time}`;
-            return second.localeCompare(first);
-        })
-        .slice(0, 5);
-
-    renderIncidents(
-        document.getElementById("recent-incidents"),
-        updatedRecentIncidents
-    );
-
-    // Refresh Browse using its current search filters.
-    searchIncidents();
-
-    incidentForm.reset();
-
-    reportSuccess.textContent =
-        `Demo report #${nextId} added. View it in Home or Browse Incidents. ` +
-        "It will disappear when you refresh the page.";
-});
-
-incidentForm.addEventListener("reset", () => {
-    reportError.textContent = "";
-    reportSuccess.textContent = "";
-});
-    searchIncidents();
+    // Initial display.
+    refreshViews();
     showScreen("home");
 }
 
 initializeApp().catch((error) => {
     console.error("Application initialization failed:", error);
+
+    const message = document.getElementById("search-message");
+
+    if (message) {
+        message.textContent =
+            "Unable to start the demo. Check that index.html contains " +
+            "the reporting and Manage Incidents forms.";
+    }
+});
 
     document.getElementById("search-message").textContent =
         "Unable to load incidents. Please reload the page.";
