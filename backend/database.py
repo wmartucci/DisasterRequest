@@ -11,6 +11,7 @@ load_dotenv(".env.local", override=True)
 
 def get_connection():
     url = os.environ.get("DATABASE_URL")
+    print(url)
     if url:
         return psycopg2.connect(url)
     raise RuntimeError("DATABASE_URL is not configured.")
@@ -70,7 +71,7 @@ def run_change(sql, params=None):
 
 def run_change_returning(sql, params=None):
     """Run an INSERT/UPDATE/DELETE ... RETURNING and return (column_names, rows).
- 
+
     RETURNING makes PostgreSQL send back the row it just created or changed,
     including values it generated itself (like an auto-increment ID). An API
     usually returns that row to the client, so this saves a second query.
@@ -89,15 +90,17 @@ def run_change_returning(sql, params=None):
     finally:
         conn.close()
 
-#--------------------------------------------------------------------------------#
-# DATABASE FUNCTIONS to support http endpoints 
-#--------------------------------------------------------------------------------#
+
+# --------------------------------------------------------------------------------#
+# DATABASE FUNCTIONS to support http endpoints
+# --------------------------------------------------------------------------------#
 
 # --------------------------------------------------------------------------------#
 # DATABASE FUNCTIONS FOR INTEGRATING WITH WITH THE WEB APP
 # --------------------------------------------------------------------------------#
 
 # --------- CREATE (the C in CRUD) ---------
+
 
 # create a new community member in the database. Returns the newly created row.
 def create_community_member(first, last, street_address, city, state, tel_no):
@@ -108,26 +111,7 @@ def create_community_member(first, last, street_address, city, state, tel_no):
     )
 
 
-
 # --------- READ (the R in CRUD) ----------
-INCIDENT_REPORT_COLUMNS = """
-    SELECT report_id,
-           coordinator_id,
-           member_id,
-           type,
-           address,
-           city,
-           state,
-           report_timestamp,
-           image_url,
-           description,
-           status,
-           ST_Y(location) AS latitude,
-           ST_X(location) AS longitude
-    FROM incident_reports
-"""
-
-
 def get_volunteers():
     # retrieves all volunteers from the database.
     return run_query("SELECT * FROM volunteers ORDER BY volunteer_id;")
@@ -140,8 +124,27 @@ def get_community_members():
 
 def get_incident_reports():
     # retrieves all incident reports from the database.
-    return run_query(f"""{INCIDENT_REPORT_COLUMNS}
-           ORDER BY report_timestamp DESC;""")
+    return run_query("""
+    SELECT i.report_id,
+           i.coordinator_id,
+           i.member_id,
+           m.first_name,
+           m.last_name,
+           m.tel_no,
+           i.type,
+           i.address,
+           i.city,
+           i.state,
+           i.report_timestamp,
+           i.image_url,
+           i.description,
+           i.status,
+           ST_Y(i.location) AS latitude,
+           ST_X(i.location) AS longitude
+    FROM incident_reports i
+    JOIN community_members m ON i.member_id = m.member_id
+    ORDER BY i.report_timestamp DESC;
+""")
 
 
 def search_community_members_by_name(first, last):
@@ -157,19 +160,19 @@ def search_community_members_by_name(first, last):
 
 def search_incident_reports_by_id(report_id):
     # searches for incident reports by report_id (case-insensitive).
-    return run_query("SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",))
+    return run_query(
+        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
+    )
 
 
 # --------- UPDATE (the U in CRUD) ----------
 
 
-
 # --------- DELETE (the D in CRUD) ----------
 def delete_community_member(member_id):
-    return run_change("DELETE FROM community_members WHERE member_id=%s;",(member_id,))
+    return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
 
 
-#--------------------------------------------------------------------------------#
+# --------------------------------------------------------------------------------#
 # RESTful API functions to support http endpoints
-#--------------------------------------------------------------------------------#
-
+# --------------------------------------------------------------------------------#
