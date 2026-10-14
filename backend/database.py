@@ -80,9 +80,7 @@ def get_community_members():
 def get_incident_reports():
     # retrieves all incident reports from the database.
     return run_query(
-        """SELECT id, coordinator_id, member_id, type, address, city,
-                  state, report_timestamp, image_url, description, status,
-                  ST_AsGeoJSON(location)::json AS location
+        """SELECT *
            FROM incident_reports
            ORDER BY report_timestamp DESC;"""
     )
@@ -90,7 +88,7 @@ def get_incident_reports():
 def search_community_members_by_name(first, last):
     # searches for community members by first and last name (case-insensitive).
     return run_query(
-        """SELECT member_id, first_name, last_name, city, state, tel_no
+        """SELECT *
            FROM community_members
            WHERE first_name ILIKE %s OR last_name ILIKE %s
            ORDER BY last_name, first_name;""",
@@ -100,9 +98,7 @@ def search_community_members_by_name(first, last):
 def search_incident_reports_by_id(report_id):
     # searches for incident reports by report_id (case-insensitive).
     return run_query(
-        """SELECT report_id, coordinator_id, member_id, type, address, city,
-                  state, report_timestamp, image_url, description, status,
-                  ST_AsGeoJSON(location)::json AS location
+        """SELECT *
            FROM incident_reports
            WHERE report_id = %s;""",
         (report_id,),
