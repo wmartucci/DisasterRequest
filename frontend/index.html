@@ -1,86 +1,80 @@
 <!doctype html>
 <html lang="en">
-  <head>
-    <meta charset="UTF-8" />
-    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-    <meta name="color-scheme" content="dark" />
-    <title>Disaster Response | Community Hub</title>
-    <link rel="stylesheet" href="style.css" />
-    <script type="module" src="main.js" defer></script>
-  </head>
-  <body>
-    <a class="skip-link" href="#main">Skip to content</a>
-    <header class="hero">
-      <div class="hero-inner">
-        <div>
-          <p class="eyebrow">COMMUNITY RESPONSE HUB</p>
-          <h1>When it matters,<br />help comes together<span>.</span></h1>
-          <p>
-            Report incidents. Connect communities. Coordinate a faster response.
-          </p>
-        </div>
-        <div class="mode-card">
-          <span class="mode-badge">DEMO MODE</span>
-          <p>Frontend preview</p>
-          <small>Sample records · No database connection</small
-          ><button id="reset-demo" class="text-button" type="button">
-            Reset sample data
-          </button>
-        </div>
+
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <meta name="color-scheme" content="dark" />
+  <title>Disaster Response | Community Hub</title>
+  <link rel="stylesheet" href="style.css" />
+  <script type="module" src="main.js" defer></script>
+</head>
+
+<body>
+  <a class="skip-link" href="#main">Skip to content</a>
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow">COMMUNITY RESPONSE HUB</p>
+        <h1>When it matters,<br />help comes together<span>.</span></h1>
+        <p>
+          Report incidents. Connect communities. Coordinate a faster response.
+        </p>
       </div>
-    </header>
-    <nav class="navigation" aria-label="Main navigation">
-      <div class="nav-inner">
-        <button type="button" data-screen="home">Home</button
-        ><button type="button" data-screen="browse">Incidents</button
-        ><button type="button" data-screen="report">Report an Incident</button
-        ><button type="button" data-screen="response">Response Desk</button
-        ><button type="button" data-screen="resources">Resources</button
-        ><button type="button" data-screen="people">People &amp; Units</button
-        ><button type="button" data-screen="posts">Community Posts</button>
-      </div>
-    </nav>
-    <main id="main" tabindex="-1">
-      <p id="app-error" class="message error" role="alert" hidden></p>
-      <div id="screens"></div>
-      <noscript
-        ><p class="message error">
-          Enable JavaScript to use the frontend demo.
-        </p></noscript
-      >
-    </main>
-    <dialog id="details-dialog" aria-labelledby="details-heading">
-      <div class="dialog-heading">
-        <h2 id="details-heading">Details</h2>
-        <button type="button" id="close-details" class="secondary-button">
-          Close
+      <div class="mode-card">
+        <span class="mode-badge">DEMO + LIVE</span>
+        <p>Frontend preview</p>
+        <small>Incidents load from the uvicorn API</small><button id="reset-demo" class="text-button" type="button">
+          Reset sample data
         </button>
       </div>
-      <div id="details-content"></div>
-    </dialog>
-    <dialog id="confirm-dialog" aria-labelledby="confirm-heading">
-      <p class="eyebrow">PLEASE CONFIRM</p>
-      <h2 id="confirm-heading">Delete this post?</h2>
-      <p id="confirm-description"></p>
-      <div class="form-actions">
-        <button
-          type="button"
-          id="confirm-cancel"
-          class="secondary-button"
-          autofocus
-        >
-          Cancel</button
-        ><button type="button" id="confirm-accept" class="delete-button">
-          Delete post
-        </button>
-      </div>
-    </dialog>
-    <footer>
-      <p>Disaster Request and Resource Management System</p>
-      <p id="storage-note">
-        Frontend demo · Sample data saved in this browser when available · No
-        database connection
+    </div>
+  </header>
+  <nav class="navigation" aria-label="Main navigation">
+    <div class="nav-inner">
+      <button type="button" data-screen="home">Home</button><button type="button"
+        data-screen="browse">Incidents</button><button type="button" data-screen="report">Report an
+        Incident</button><button type="button" data-screen="response">Response Desk</button><button type="button"
+        data-screen="resources">Resources</button><button type="button" data-screen="people">People &amp;
+        Units</button><button type="button" data-screen="posts">Community Posts</button>
+    </div>
+  </nav>
+  <main id="main" tabindex="-1">
+    <p id="app-error" class="message error" role="alert" hidden></p>
+    <div id="screens"></div>
+    <noscript>
+      <p class="message error">
+        Enable JavaScript to use the frontend demo.
       </p>
-    </footer>
-  </body>
+    </noscript>
+  </main>
+  <dialog id="details-dialog" aria-labelledby="details-heading">
+    <div class="dialog-heading">
+      <h2 id="details-heading">Details</h2>
+      <button type="button" id="close-details" class="secondary-button">
+        Close
+      </button>
+    </div>
+    <div id="details-content"></div>
+  </dialog>
+  <dialog id="confirm-dialog" aria-labelledby="confirm-heading">
+    <p class="eyebrow">PLEASE CONFIRM</p>
+    <h2 id="confirm-heading">Delete this post?</h2>
+    <p id="confirm-description"></p>
+    <div class="form-actions">
+      <button type="button" id="confirm-cancel" class="secondary-button" autofocus>
+        Cancel</button><button type="button" id="confirm-accept" class="delete-button">
+        Delete post
+      </button>
+    </div>
+  </dialog>
+  <footer>
+    <p>Disaster Request and Resource Management System</p>
+    <p id="storage-note">
+      Incident reports are fetched from the API · Other demo data is saved in
+      this browser when available
+    </p>
+  </footer>
+</body>
+
 </html>
