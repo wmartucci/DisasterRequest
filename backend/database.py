@@ -1,10 +1,24 @@
 # Database interaction functions
 
-
-
-
 import psycopg2 # for PostgreSQL database connection
 import os # for environment variable access
+
+#import fastapi
+import dotenv
+#import json 
+#import requests 
+
+dotenv.load_dotenv()  # load environment variables from .env file
+
+# Connection settings. Every value must match docker-compose.yml,
+# otherwise PostgreSQL rejects the login.
+DB_CONFIG = {
+    "host": "localhost",        # the database is reached through this computer
+    "port": 5433,               # the LEFT number in "5433:5432" (the outside port)
+    "dbname": "studentdb",      # POSTGRES_DB
+    "user": "student",          # POSTGRES_USER
+    "password": "studentpassword",  # POSTGRES_PASSWORD
+}
 
 def get_connection():
     # If DATABASE_URL is set, connect to the cloud database (Neon).
@@ -12,12 +26,9 @@ def get_connection():
     url = os.environ.get("DATABASE_URL") 
     if url:
         return psycopg2.connect(url)      # cloud database (Neon)
-    return "Set DATABASE_URL environment variable to connect to the cloud database (Neon)."
+    return psycopg2.connect(**DB_CONFIG)  # local Docker database
 
-    # Otherwise, connect to the local Docker database as before.
-    # We can test database modifications locally before deploying to the cloud.
-    # We just need to set up a docker-compose.yml file to run a PostgreSQL database in a Docker container.
-    #return psycopg2.connect(**DB_CONFIG)  # local Docker database
+
 
 def run_query(sql, params=None):
     """Run a SELECT and return (column_names, rows).
@@ -71,11 +82,45 @@ def run_change(sql, params=None):
     finally:
         conn.close()
 
+
+def run_change_returning(sql, params=None):
+    """Run an INSERT/UPDATE/DELETE ... RETURNING and return (column_names, rows).
+ 
+    RETURNING makes PostgreSQL send back the row it just created or changed,
+    including values it generated itself (like an auto-increment ID). An API
+    usually returns that row to the client, so this saves a second query.
+    """
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(sql, params)
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+        conn.commit()
+        return columns, rows
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 #--------------------------------------------------------------------------------#
-# DATABASE FUNCTIONS FOR INTEGRATING WITH WITH THE WEB APP
+# DATABASE FUNCTIONS to support http endpoints 
 #--------------------------------------------------------------------------------#
 
-# ---------- READ (the R in CRUD) ----------
+# --------- CREATE (the C in CRUD) ---------
+
+# create a new community member in the database. Returns the newly created row.
+def create_community_member(first, last, street_address, city, state, tel_no):
+    return run_change_returning(
+        "INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no) "
+        "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
+        (first, last, street_address, city, state, tel_no),
+    )
+
+
+
+# --------- READ (the R in CRUD) ----------
 def get_volunteers():
     # retrieves all volunteers from the database.
     return run_query("SELECT * FROM volunteers;")
@@ -98,4 +143,15 @@ def search_incident_reports_by_id(report_id):
     # searches for incident reports by report_id (case-insensitive).
     return run_query("SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",))
 
-# --------- CREATE (the C in CRUD) ----------
+
+# --------- UPDATE (the U in CRUD) ----------
+
+# --------- DELETE (the D in CRUD) ----------
+def delete_community_member(member_id):
+    return run_change("DELETE FROM community_members WHERE member_id=%s;",(member_id,))
+
+
+#--------------------------------------------------------------------------------#
+# RESTful API functions to support http endpoints
+#--------------------------------------------------------------------------------#
+
