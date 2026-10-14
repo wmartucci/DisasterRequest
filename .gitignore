@@ -1,3 +1,6 @@
 .venv
-.env
 data/processing
+.env
+.env.local
+__pycache__/
+*.py[cod]

@@ -67,17 +67,12 @@ CREATE TABLE posts (
     media VARCHAR(70)
 );
 
-CREATE TABLE response_unit (
+CREATE TABLE response_units (
     unit_id SERIAL PRIMARY KEY,
     unit_name TEXT NOT NULL,
     unit_type TEXT NOT NULL 
         CONSTRAINT unit_type_valid
         CHECK(unit_type IN('Fire', 'Police', 'Medical')),
-    tel_no TEXT NOT NULL 
-        CONSTRAINT unit_tel_no_valid
-        CHECK (
-            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        ),
     organization TEXT NOT NULL,
     personnel_count INTEGER NOT NULL 
         CONSTRAINT unit_personnel_count_gt_zero
@@ -93,7 +88,7 @@ CREATE TABLE help_requests (
         ON DELETE CASCADE,
     unit_id INTEGER NOT NULL
         CONSTRAINT request_unit_fk
-        REFERENCES response_unit(unit_id)
+        REFERENCES response_units(unit_id)
         ON DELETE SET NULL,
     request_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     status TEXT NOT NULL 
