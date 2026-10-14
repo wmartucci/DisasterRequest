@@ -146,6 +146,8 @@ def search_incident_reports_by_id(report_id):
 
 # --------- UPDATE (the U in CRUD) ----------
 
+
+
 # --------- DELETE (the D in CRUD) ----------
 def delete_community_member(member_id):
     return run_change("DELETE FROM community_members WHERE member_id=%s;",(member_id,))
