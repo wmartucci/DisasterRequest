@@ -1,2 +1,4 @@
 .venv
 data/processing
+.env
+.env.local
