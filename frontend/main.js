@@ -6,8 +6,6 @@ import {
   deleteIncidentReport as deleteReport,
 } from "./api.js";
 
-const API_CONFIG = { writesEnabled: true };
-
 const createReport = (payload) =>
   createIncidentReport({ ...payload, status: "Pending Assistance" });
 
@@ -27,64 +25,6 @@ const statuses = [
 
 const types = ["Fallen Tree", "Flood", "Fire", "Power"];
 
-const demoMembers = [
-  {
-    member_id: 1,
-    first_name: "Avery",
-    last_name: "Sample",
-    tel_no: "540-555-0101",
-  },
-  {
-    member_id: 2,
-    first_name: "Jordan",
-    last_name: "Demo",
-    tel_no: "540-555-0102",
-  },
-];
-
-const demoReports = [
-  {
-    report_id: 101,
-    member_id: 1,
-    type: "Flood",
-    address: "100 Sample Lane",
-    city: "Blacksburg",
-    state: "VA",
-    description: "Sample report: water across the road.",
-    status: "Pending Assistance",
-    latitude: 37.2296,
-    longitude: -80.4139,
-    report_timestamp: "2026-10-14T17:00:00Z",
-  },
-  {
-    report_id: 102,
-    member_id: 2,
-    type: "Fallen Tree",
-    address: "200 Demo Street",
-    city: "Blacksburg",
-    state: "VA",
-    description: "Sample report: fallen tree blocking the sidewalk.",
-    status: "Unit in Response",
-    latitude: 37.23,
-    longitude: -80.42,
-    report_timestamp: "2026-10-14T16:00:00Z",
-  },
-  {
-    report_id: 103,
-    member_id: 1,
-    type: "Power",
-    address: "300 Preview Road",
-    city: "Christiansburg",
-    state: "VA",
-    description: "Sample report: power restored.",
-    status: "Resolved",
-    latitude: 37.13,
-    longitude: -80.4,
-    report_timestamp: "2026-10-14T15:00:00Z",
-  },
-];
-
-let mode = "live";
 let reports = [];
 let members = [];
 let ready = false;
@@ -92,14 +32,13 @@ let busy = false;
 let loading = false;
 let generation = 0;
 let pendingDelete = null;
-let nextDemoId = 104;
 
-const make = (tag, text, className) => {
+function make(tag, text, className) {
   const el = document.createElement(tag);
   if (text != null) el.textContent = text;
   if (className) el.className = className;
   return el;
-};
+}
 
 function options(select, values) {
   values.forEach((value) => select.add(new Option(value, value)));
@@ -137,18 +76,13 @@ function show(screen) {
 }
 
 function syncControls() {
-  const enabled =
-    ready &&
-    !busy &&
-    !loading &&
-    (mode === "demo" || API_CONFIG.writesEnabled);
+  const enabled = ready && !busy && !loading;
 
   document.querySelectorAll("[data-write]").forEach((button) => {
     button.disabled = !enabled;
   });
 
   $("#create-form [type=submit]").disabled = !enabled || !members.length;
-  $("#mode").disabled = busy;
   $("#refresh").disabled = busy || loading;
   $("#confirm-delete").disabled = busy;
   $("#cancel-delete").disabled = busy;
@@ -160,12 +94,7 @@ function syncControls() {
       : "Reports unavailable";
 
   document.querySelectorAll(".write-note").forEach((note) => {
-    note.textContent =
-      mode === "demo"
-        ? "Sample preview: changes last until you reload or switch data source. No database is changed."
-        : API_CONFIG.writesEnabled
-          ? "Changes are sent to the team API."
-          : "Live changes are pending the team’s create, update and delete API routes. Switch to Sample preview to try these controls.";
+    note.textContent = "Changes are sent to the team API.";
   });
 }
 
@@ -188,7 +117,6 @@ function reporter(report) {
 
 function date(value) {
   const parsed = new Date(value);
-
   return value && !Number.isNaN(parsed.getTime())
     ? parsed.toLocaleString()
     : "Not available";
@@ -209,18 +137,9 @@ function render() {
 
   const filtered = reports.filter(
     (r) =>
-      (!$("#status-filter").value ||
-        r.status === $("#status-filter").value) &&
-      (!$("#type-filter").value ||
-        r.type === $("#type-filter").value) &&
-      [
-        r.report_id,
-        reporter(r).name,
-        r.address,
-        r.city,
-        r.state,
-        r.description,
-      ]
+      (!$("#status-filter").value || r.status === $("#status-filter").value) &&
+      (!$("#type-filter").value || r.type === $("#type-filter").value) &&
+      [r.report_id, reporter(r).name, r.address, r.city, r.state, r.description]
         .join(" ")
         .toLowerCase()
         .includes(query),
@@ -232,7 +151,7 @@ function render() {
     ? `${filtered.length} of ${reports.length} reports`
     : loading
       ? "Loading reports…"
-      : "Reports could not be loaded. Retry or choose Sample preview.";
+      : "Reports could not be loaded. Use Refresh reports to try again.";
 
   if (!filtered.length) {
     const row = make("tr");
@@ -241,7 +160,6 @@ function render() {
       ready ? "No reports match your filters." : "No reports loaded.",
       "empty",
     );
-
     cell.colSpan = 5;
     row.append(cell);
     $("#rows").append(row);
@@ -270,18 +188,12 @@ function render() {
 
     cells[1].append(
       make("span", reporter(report).name),
-      make(
-        "small",
-        `Member #${report.member_id} · ${reporter(report).phone}`,
-      ),
+      make("small", `Member #${report.member_id} · ${reporter(report).phone}`),
     );
 
     cells[2].append(
       make("span", report.address),
-      make(
-        "small",
-        [report.city, report.state].filter(Boolean).join(", "),
-      ),
+      make("small", [report.city, report.state].filter(Boolean).join(", ")),
     );
 
     cells[3].append(
@@ -305,6 +217,7 @@ function render() {
     manage.setAttribute("aria-label", `Manage report ${report.report_id}`);
 
     manage.addEventListener("click", () => {
+      clearMessages();
       show("manage");
       $("#update-form [name=report_id]").value = report.report_id;
       $("#delete-form [name=report_id]").value = report.report_id;
@@ -376,10 +289,7 @@ function openDetails(report) {
 
     try {
       const url = new URL(report.image_url);
-
-      if (!["https:", "http:"].includes(url.protocol)) {
-        throw Error();
-      }
+      if (!["https:", "http:"].includes(url.protocol)) throw Error();
 
       const link = make("a", "Open attached image");
       link.href = url.href;
@@ -402,17 +312,6 @@ async function load() {
   loading = true;
   ready = false;
   render();
-
-  if (mode === "demo") {
-    reports = structuredClone(demoReports);
-    members = structuredClone(demoMembers);
-    nextDemoId = 104;
-    ready = true;
-    loading = false;
-    renderMembers();
-    render();
-    return;
-  }
 
   const [reportResult, memberResult] = await Promise.allSettled([
     getReports(),
@@ -440,10 +339,7 @@ async function load() {
     );
   }
 
-  if (
-    memberResult.status === "fulfilled" &&
-    Array.isArray(memberResult.value)
-  ) {
+  if (memberResult.status === "fulfilled" && Array.isArray(memberResult.value)) {
     members = memberResult.value;
   } else if (ready) {
     message(
@@ -480,15 +376,10 @@ function checkWrite() {
   if (!ready || loading) {
     throw Error("Load reports before making changes.");
   }
-
-  if (mode !== "demo" && !API_CONFIG.writesEnabled) {
-    throw Error("Live changes are waiting for the team’s API routes.");
-  }
 }
 
 async function mutate(operation) {
   if (busy) return;
-
   clearMessages();
 
   try {
@@ -515,9 +406,7 @@ $("#create-form").addEventListener("submit", (event) => {
       payload[key] = payload[key].trim();
 
       if (!payload[key]) {
-        throw Error(
-          `${key[0].toUpperCase() + key.slice(1)} cannot be blank.`,
-        );
+        throw Error(`${key[0].toUpperCase() + key.slice(1)} cannot be blank.`);
       }
     }
 
@@ -548,24 +437,9 @@ $("#create-form").addEventListener("submit", (event) => {
       throw Error("Image URL must start with http:// or https://.");
     }
 
-    if (mode === "demo") {
-      reports.unshift({
-        ...payload,
-        report_id: nextDemoId++,
-        status: "Pending Assistance",
-        coordinator_id: null,
-        report_timestamp: new Date().toISOString(),
-      });
-
-      form.reset();
-      render();
-      message("Sample incident created. No database was changed.");
-    } else {
-      await createReport(payload);
-      form.reset();
-      await refreshAfterChange("Incident created.");
-    }
-
+    await createReport(payload);
+    form.reset();
+    await refreshAfterChange("Incident created.");
     show("browse");
   });
 });
@@ -582,20 +456,8 @@ $("#update-form").addEventListener("submit", (event) => {
       throw Error("Choose a valid report status.");
     }
 
-    if (mode === "demo") {
-      const report = reports.find((r) => Number(r.report_id) === id);
-
-      if (!report) {
-        throw Error(`No incident report with ID ${id}.`);
-      }
-
-      report.status = status;
-      render();
-      message(`Sample report #${id} updated. No database was changed.`);
-    } else {
-      await updateStatus(id, status);
-      await refreshAfterChange(`Report #${id} status updated.`);
-    }
+    await updateStatus(id, status);
+    await refreshAfterChange(`Report #${id} status updated.`);
   });
 });
 
@@ -631,21 +493,11 @@ $("#delete-form").addEventListener("submit", (event) => {
 $("#confirm-delete").addEventListener("click", () => {
   mutate(async () => {
     const id = pendingDelete;
-
-    if (id === null) {
-      throw Error("Choose a report to delete.");
-    }
+    if (id === null) throw Error("Choose a report to delete.");
 
     try {
-      if (mode === "demo") {
-        reports = reports.filter((report) => Number(report.report_id) !== id);
-        render();
-        message(`Sample report #${id} deleted. No database was changed.`);
-      } else {
-        await deleteReport(id);
-        await refreshAfterChange(`Report #${id} deleted.`);
-      }
-
+      await deleteReport(id);
+      await refreshAfterChange(`Report #${id} deleted.`);
       $("#confirm").close();
       pendingDelete = null;
       $("#delete-form").reset();
@@ -663,11 +515,8 @@ $("#cancel-delete").addEventListener("click", () => {
 });
 
 $("#confirm").addEventListener("cancel", (event) => {
-  if (busy) {
-    event.preventDefault();
-  } else {
-    pendingDelete = null;
-  }
+  if (busy) event.preventDefault();
+  else pendingDelete = null;
 });
 
 $("#close-details").addEventListener("click", () => {
@@ -693,43 +542,6 @@ $("#filters").addEventListener("reset", () => {
 
 $("#refresh").addEventListener("click", () => {
   clearMessages();
-
-  if (mode === "demo") {
-    render();
-    message("Sample reports are up to date.");
-  } else {
-    load();
-  }
-});
-
-$("#mode").addEventListener("change", () => {
-  mode = $("#mode").value;
-  clearMessages();
-
-  reports = [];
-  members = [];
-
-  $("#create-form").reset();
-  $("#update-form").reset();
-  $("#delete-form").reset();
-  $("#details").close();
-  $("#confirm").close();
-
-  pendingDelete = null;
-
-  $("#mode-badge").textContent =
-    mode === "demo" ? "SAMPLE PREVIEW" : "LIVE API";
-
-  $("#mode-note").textContent =
-    mode === "demo"
-      ? "Fictional records · No database connection"
-      : "Reports are loaded from the team’s API.";
-
-  $("#footer-mode").textContent =
-    mode === "demo"
-      ? "Sample preview · Changes are temporary"
-      : "Team API · Incident desk";
-
   load();
 });
 
