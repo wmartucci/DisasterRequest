@@ -8,6 +8,10 @@ from psycopg2.extras import RealDictCursor
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
 
+# --------------------------------------------------------------------------------#
+# FUNCTIONS TO ALLOW QUERYING DATABASE
+# --------------------------------------------------------------------------------#
+
 
 def get_connection():
     url = os.environ.get("DATABASE_URL")
@@ -90,14 +94,11 @@ def run_change_returning(sql, params=None):
 
 
 # --------------------------------------------------------------------------------#
-# DATABASE FUNCTIONS to support http endpoints
+# SPECIFIC DATABASE QUERY FUNCTIONS
 # --------------------------------------------------------------------------------#
 
-# --------------------------------------------------------------------------------#
-# DATABASE FUNCTIONS FOR INTEGRATING WITH WITH THE WEB APP
-# --------------------------------------------------------------------------------#
 
-# --------- CREATE (the C in CRUD) ---------
+# --------- CREATE ---------
 def create_community_member(first, last, street_address, city, state, tel_no):
     # create a new community member in the database. Returns the newly created row.
     return run_change_returning(
@@ -106,14 +107,38 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         (first, last, street_address, city, state, tel_no),
     )
 
-def create_incident_report(member_id, type, address, city, state, image_url, description, status, latitude, longitude):
+
+def create_incident_report(
+    member_id,
+    type,
+    address,
+    city,
+    state,
+    image_url,
+    description,
+    status,
+    latitude,
+    longitude,
+):
     return run_change_returning(
         "INSERT INTO incident_reports (member_id, type, address, city, state, image_url, description, status, location) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) RETURNING *;",
-        (member_id, type, address, city, state, image_url, description, status, longitude, latitude),
+        (
+            member_id,
+            type,
+            address,
+            city,
+            state,
+            image_url,
+            description,
+            status,
+            longitude,
+            latitude,
+        ),
     )
 
-# --------- READ (the R in CRUD) ----------
+
+# --------- READ ----------
 def get_volunteers():
     # retrieves all volunteers from the database.
     return run_query("SELECT * FROM volunteers ORDER BY volunteer_id;")
@@ -167,7 +192,7 @@ def search_incident_reports_by_id(report_id):
     )
 
 
-# --------- UPDATE (the U in CRUD) ----------
+# --------- UPDATE ----------
 def update_incident_report_status(report_id, new_status):
     # updates the status of an incident report by report_id.
     return run_change(
@@ -175,12 +200,13 @@ def update_incident_report_status(report_id, new_status):
         (new_status, report_id),
     )
 
-# --------- DELETE (the D in CRUD) ----------
+
+# --------- DELETE ----------
 def delete_community_member(member_id):
     # deletes a community member by member_id.
     return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
 
+
 def delete_incident_report(report_id):
     # deletes an incident report by report_id.
     return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
-

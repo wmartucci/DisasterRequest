@@ -1,8 +1,9 @@
-from fastapi import FastAPI, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
+from pydantic import BaseModel
 
-from . import database
+from . import database as db
 
 app = FastAPI(title="Disaster Request API", version="1.0.0")
 
@@ -20,6 +21,40 @@ app.add_middleware(
 )
 
 
+# --------- Data model classes ----------
+class IncidentReport(BaseModel):
+    member_id: int
+    type: str
+    address: str
+    city: str
+    state: str
+    image_url: str | None = None
+    description: str
+    status: str
+    latitude: float
+    longitude: float
+
+
+class StatusUpdate(BaseModel):
+    new_status: str
+
+
+# --------- CREATE endpoints ----------
+@app.post("/api/incident-reports", status_code=201)
+def create_incident_report(report: IncidentReport):
+    return db.create_incident_report(**report.model_dump())
+
+
+# --------- UPDATE endpoints ----------
+@app.patch("/api/incident-reports/{report_id}")
+def update_incident_report_status(report_id: int, update: StatusUpdate):
+    result = db.update_incident_report_status(report_id, update.new_status)
+    if result == 0:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return result
+
+
+# --------- READ endpoints ----------
 @app.get("/health")
 def health() -> dict[str, str]:
     return {"status": "ok"}
@@ -27,7 +62,7 @@ def health() -> dict[str, str]:
 
 @app.get("/api/volunteers")
 def volunteers() -> list[dict]:
-    return database.get_volunteers()
+    return db.get_volunteers()
 
 
 @app.get("/api/community-members")
@@ -36,17 +71,27 @@ def community_members(
     last: str | None = Query(default=None, min_length=1),
 ) -> list[dict]:
     if first is None and last is None:
-        return database.get_community_members()
-    return database.search_community_members_by_name(first or "", last or "")
+        return db.get_community_members()
+    return db.search_community_members_by_name(first or "", last or "")
 
 
 @app.get("/api/incident-reports")
 def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[dict]:
     if report_id is None:
-        return database.get_incident_reports()
-    return database.search_incident_reports_by_id(report_id)
+        return db.get_incident_reports()
+    return db.search_incident_reports_by_id(report_id)
 
 
+# --------- DELETE endpoints ----------
+@app.delete("/api/incident-reports/{report_id}")
+def delete_incident_report(report_id: int):
+    result = db.delete_incident_report(report_id)
+    if result == 0:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return result
+
+
+# --------- Helper functions ----------
 @app.exception_handler(RuntimeError)
 async def database_configuration_error(_: Request, exc: RuntimeError):
     return JSONResponse(status_code=503, content={"detail": str(exc)})
