@@ -21,14 +21,9 @@
       </div>
 
       <div class="mode-card">
-        <span id="mode-badge" class="mode-badge">LIVE API</span>
+        <span class="mode-badge">TEAM API</span>
         <p id="connection" role="status">Connecting…</p>
-        <label for="mode">Data source</label>
-        <select id="mode">
-          <option value="live">Team API</option>
-          <option value="demo">Sample preview</option>
-        </select>
-        <small id="mode-note">Reports are loaded from the team’s API.</small>
+        <small>Reports are loaded from the team’s API.</small>
       </div>
     </div>
   </header>
@@ -46,7 +41,6 @@
     <p id="notice" class="message" role="status" hidden></p>
     <p id="error" class="message error" role="alert" hidden></p>
 
-    <!-- HOME -->
     <section id="home" class="screen" aria-labelledby="home-title">
       <p class="eyebrow">WELCOME / COMMUNITY RESPONSE</p>
       <h2 id="home-title">A clearer picture. A faster response.</h2>
@@ -109,7 +103,6 @@
       </div>
     </section>
 
-    <!-- READ AND SEARCH -->
     <section id="browse" class="screen" hidden>
       <div class="section-heading">
         <div>
@@ -133,21 +126,18 @@
             placeholder="Report ID, name, city or description"
           />
         </label>
-
         <label>
           Status
           <select id="status-filter">
             <option value="">All statuses</option>
           </select>
         </label>
-
         <label>
           Incident type
           <select id="type-filter">
             <option value="">All types</option>
           </select>
         </label>
-
         <button type="reset" class="secondary-button">Clear</button>
       </form>
 
@@ -172,7 +162,6 @@
       </div>
     </section>
 
-    <!-- CREATE -->
     <section id="create" class="screen" hidden>
       <p class="eyebrow">02 / REPORT AN INCIDENT</p>
       <h2>Make it visible.</h2>
@@ -189,85 +178,44 @@
               <option value="">Loading members…</option>
             </select>
           </label>
-
           <label>
             Incident type
             <select name="type" id="create-type" required></select>
           </label>
-
           <label>
             Street address
-            <input
-              name="address"
-              required
-              maxlength="300"
-              autocomplete="street-address"
-            />
+            <input name="address" required maxlength="300"
+              autocomplete="street-address" />
           </label>
-
           <label>
             City
-            <input
-              name="city"
-              required
-              maxlength="100"
-              autocomplete="address-level2"
-            />
+            <input name="city" required maxlength="100"
+              autocomplete="address-level2" />
           </label>
-
           <label>
             State
-            <input
-              name="state"
-              required
-              maxlength="100"
-              autocomplete="address-level1"
-            />
+            <input name="state" required maxlength="100"
+              autocomplete="address-level1" />
           </label>
-
           <label>
             Latitude
-            <input
-              name="latitude"
-              type="number"
-              step="any"
-              min="-90"
-              max="90"
-              required
-              placeholder="37.2296"
-            />
+            <input name="latitude" type="number" step="any"
+              min="-90" max="90" required placeholder="37.2296" />
           </label>
-
           <label>
             Longitude
-            <input
-              name="longitude"
-              type="number"
-              step="any"
-              min="-180"
-              max="180"
-              required
-              placeholder="-80.4139"
-            />
+            <input name="longitude" type="number" step="any"
+              min="-180" max="180" required placeholder="-80.4139" />
           </label>
-
           <label>
             Image URL (optional)
-            <input
-              name="image_url"
-              type="url"
-              placeholder="https://example.com/photo.jpg"
-            />
+            <input name="image_url" type="url"
+              placeholder="https://example.com/photo.jpg" />
           </label>
-
           <label class="full">
             Description
-            <textarea
-              name="description"
-              required
-              maxlength="5000"
-              rows="4"
-            ></textarea>
+            <textarea name="description" required
+              maxlength="5000" rows="4"></textarea>
           </label>
         </div>
 
@@ -275,14 +223,12 @@
           New reports start as Pending Assistance.
           Coordinates use decimal degrees.
         </p>
-
         <button type="submit" class="primary-button" data-write>
           Create report
         </button>
       </form>
     </section>
 
-    <!-- UPDATE AND DELETE -->
     <section id="manage" class="screen" hidden>
       <p class="eyebrow">03 / COORDINATOR WORKSPACE</p>
       <h2>Keep the response moving.</h2>
@@ -294,25 +240,16 @@
       <div class="manage-grid">
         <form id="update-form" class="panel">
           <h3>Update report status</h3>
-
           <label>
             Report ID
-            <input
-              name="report_id"
-              type="number"
-              min="1"
-              step="1"
-              required
-            />
+            <input name="report_id" type="number"
+              min="1" step="1" required />
           </label>
-
           <label>
             New status
             <select name="status" id="update-status" required></select>
           </label>
-
           <p class="muted">Only the status will change.</p>
-
           <button type="submit" class="primary-button" data-write>
             Save status
           </button>
@@ -320,23 +257,15 @@
 
         <form id="delete-form" class="panel danger-panel">
           <h3>Delete a report</h3>
-
           <label>
             Report ID
-            <input
-              name="report_id"
-              type="number"
-              min="1"
-              step="1"
-              required
-            />
+            <input name="report_id" type="number"
+              min="1" step="1" required />
           </label>
-
           <p class="muted">
             Deletion also removes linked help requests under the current
             database rules. You’ll confirm before deleting.
           </p>
-
           <button type="submit" class="delete-button" data-write>
             Review deletion
           </button>
@@ -351,7 +280,6 @@
     </noscript>
   </main>
 
-  <!-- REPORT DETAILS -->
   <dialog id="details" aria-labelledby="details-title">
     <div class="dialog-heading">
       <h2 id="details-title">Report details</h2>
@@ -360,14 +288,12 @@
     <div id="details-body"></div>
   </dialog>
 
-  <!-- DELETE CONFIRMATION -->
   <dialog id="confirm" aria-labelledby="confirm-title">
     <p class="eyebrow">PLEASE CONFIRM</p>
     <h2 id="confirm-title">Delete incident report?</h2>
     <p id="delete-description"></p>
     <p>Linked help requests will also be deleted. This cannot be undone.</p>
     <p id="delete-error" class="message error" role="alert" hidden></p>
-
     <div class="form-actions">
       <button id="cancel-delete" class="secondary-button" autofocus>
         Cancel
@@ -380,7 +306,7 @@
 
   <footer>
     <p>Disaster Request and Resource Management System</p>
-    <p id="footer-mode">Incident desk · Phase 4</p>
+    <p id="footer-mode">Team API · Incident desk</p>
   </footer>
 </body>
 </html>
