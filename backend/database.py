@@ -106,7 +106,12 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         (first, last, street_address, city, state, tel_no),
     )
 
-
+def create_incident_report(member_id, type, address, city, state, image_url, description, status, latitude, longitude):
+    return run_change_returning(
+        "INSERT INTO incident_reports (member_id, type, address, city, state, image_url, description, status, location) "
+        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) RETURNING *;",
+        (member_id, type, address, city, state, image_url, description, status, longitude, latitude),
+    )
 
 # --------- READ (the R in CRUD) ----------
 def get_volunteers():
