@@ -16,7 +16,7 @@ app.add_middleware(
         "http://127.0.0.1:3000",
     ],
     allow_credentials=True,
-    allow_methods=["GET", "OPTIONS"],
+    allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
@@ -41,25 +41,12 @@ class StatusUpdate(BaseModel):
 
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
-def create_incident_report(report: IncidentReport):
-    return db.create_incident_report(**report.model_dump())
-
-
-# --------- UPDATE endpoints ----------
-@app.patch("/api/incident-reports/{report_id}")
-def update_incident_report_status(report_id: int, update: StatusUpdate):
-    result = db.update_incident_report_status(report_id, update.new_status)
-    if result == 0:
-        raise HTTPException(status_code=404, detail="Report not found")
-    return result
+def create_incident_report(report: IncidentReport) -> dict:
+    columns, rows = db.create_incident_report(**report.model_dump())
+    return dict(zip(columns, rows[0]))
 
 
 # --------- READ endpoints ----------
-@app.get("/health")
-def health() -> dict[str, str]:
-    return {"status": "ok"}
-
-
 @app.get("/api/volunteers")
 def volunteers() -> list[dict]:
     return db.get_volunteers()
@@ -82,13 +69,22 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
     return db.search_incident_reports_by_id(report_id)
 
 
+# --------- UPDATE endpoints ----------
+@app.patch("/api/incident-reports/{report_id}")
+def update_incident_report_status(report_id: int, update: StatusUpdate) -> dict:
+    result = db.update_incident_report_status(report_id, update.new_status)
+    if result == 0:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return {"report_id": report_id, "status": update.new_status}
+
+
 # --------- DELETE endpoints ----------
 @app.delete("/api/incident-reports/{report_id}")
-def delete_incident_report(report_id: int):
+def delete_incident_report(report_id: int) -> dict:
     result = db.delete_incident_report(report_id)
     if result == 0:
         raise HTTPException(status_code=404, detail="Report not found")
-    return result
+    return {"report_id": report_id, "deleted": True}
 
 
 # --------- Helper functions ----------
