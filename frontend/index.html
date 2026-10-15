@@ -1,80 +1,255 @@
 <!doctype html>
 <html lang="en">
-
-<head>
-  <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <meta name="color-scheme" content="dark" />
-  <title>Disaster Response | Community Hub</title>
-  <link rel="stylesheet" href="style.css" />
-  <script type="module" src="main.js" defer></script>
-</head>
-
-<body>
-  <a class="skip-link" href="#main">Skip to content</a>
-  <header class="hero">
-    <div class="hero-inner">
-      <div>
-        <p class="eyebrow">COMMUNITY RESPONSE HUB</p>
-        <h1>When it matters,<br />help comes together<span>.</span></h1>
-        <p>
-          Report incidents. Connect communities. Coordinate a faster response.
-        </p>
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1" />
+    <meta name="color-scheme" content="dark" />
+    <title>Disaster Response | Incident Desk</title>
+    <link rel="stylesheet" href="style.css" />
+    <script type="module" src="main.js"></script>
+  </head>
+  <body>
+    <a href="#main" class="skip-link">Skip to content</a>
+    <header class="hero">
+      <div class="hero-inner">
+        <div>
+          <p class="eyebrow">COMMUNITY RESPONSE HUB / INCIDENT DESK</p>
+          <h1>Every report.<br />A step toward recovery<span>.</span></h1>
+          <p>See what’s happening. Keep your community moving forward.</p>
+        </div>
+        <div class="mode-card">
+          <span id="mode-badge" class="mode-badge">LIVE API</span>
+          <p id="connection" role="status">Connecting…</p>
+          <label for="mode">Data source</label
+          ><select id="mode">
+            <option value="live">Team API</option>
+            <option value="demo">Sample preview</option></select
+          ><small id="mode-note">Reports are loaded from the team’s API.</small>
+        </div>
       </div>
-      <div class="mode-card">
-        <span class="mode-badge">DEMO + LIVE</span>
-        <p>Frontend preview</p>
-        <small>Incidents load from the uvicorn API</small><button id="reset-demo" class="text-button" type="button">
-          Reset sample data
+    </header>
+    <nav class="navigation" aria-label="Main navigation">
+      <div class="nav-inner">
+        <button data-screen="browse" aria-current="page">Incidents</button
+        ><button data-screen="create">Create report</button
+        ><button data-screen="manage">Manage reports</button>
+      </div>
+    </nav>
+    <main id="main" tabindex="-1">
+      <p id="notice" class="message" role="status" hidden></p>
+      <p id="error" class="message error" role="alert" hidden></p>
+      <div class="stats-grid" aria-label="Incident overview">
+        <div class="stat-card">
+          <span>All reports</span><strong id="total">—</strong>
+        </div>
+        <div class="stat-card">
+          <span>Awaiting assistance</span><strong id="pending">—</strong>
+        </div>
+        <div class="stat-card">
+          <span>Resolved</span><strong id="resolved">—</strong>
+        </div>
+      </div>
+      <section id="browse" class="screen">
+        <div class="section-heading">
+          <div>
+            <p class="eyebrow">01 / COMMUNITY OVERVIEW</p>
+            <h2>Incident reports</h2>
+            <p class="muted">Reports and the community members behind them.</p>
+          </div>
+          <button id="refresh" class="secondary-button">Refresh reports</button>
+        </div>
+        <form id="filters" class="filter-bar">
+          <label
+            >Search reports<input
+              id="query"
+              type="search"
+              placeholder="Report ID, name, city or description" /></label
+          ><label
+            >Status<select id="status-filter">
+              <option value="">All statuses</option>
+            </select></label
+          ><label
+            >Incident type<select id="type-filter">
+              <option value="">All types</option>
+            </select></label
+          ><button type="reset" class="secondary-button">Clear</button>
+        </form>
+        <p id="count" class="muted" aria-live="polite"></p>
+        <div class="table-wrap">
+          <table>
+            <caption class="sr-only">
+              Incident reports with community member details
+            </caption>
+            <thead>
+              <tr>
+                <th>Report</th>
+                <th>Community member</th>
+                <th>Location</th>
+                <th>Status</th>
+                <th>Actions</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+        </div>
+      </section>
+      <section id="create" class="screen" hidden>
+        <p class="eyebrow">02 / REPORT AN INCIDENT</p>
+        <h2>Make it visible.</h2>
+        <p class="muted">
+          Choose an existing community member and tell us where help is needed.
+        </p>
+        <p class="write-note message"></p>
+        <form id="create-form" class="panel">
+          <div class="form-grid">
+            <label
+              >Community member<select name="member_id" id="member" required>
+                <option value="">Loading members…</option>
+              </select></label
+            ><label
+              >Incident type<select
+                name="type"
+                id="create-type"
+                required
+              ></select></label
+            ><label
+              >Street address<input
+                name="address"
+                required
+                maxlength="300"
+                autocomplete="street-address" /></label
+            ><label
+              >City<input
+                name="city"
+                required
+                maxlength="100"
+                autocomplete="address-level2" /></label
+            ><label
+              >State<input
+                name="state"
+                required
+                maxlength="100"
+                autocomplete="address-level1" /></label
+            ><label
+              >Latitude<input
+                name="latitude"
+                type="number"
+                step="any"
+                min="-90"
+                max="90"
+                required
+                placeholder="37.2296" /></label
+            ><label
+              >Longitude<input
+                name="longitude"
+                type="number"
+                step="any"
+                min="-180"
+                max="180"
+                required
+                placeholder="-80.4139" /></label
+            ><label
+              >Image URL (optional)<input
+                name="image_url"
+                type="url"
+                placeholder="https://example.com/photo.jpg" /></label
+            ><label class="full"
+              >Description<textarea
+                name="description"
+                required
+                maxlength="5000"
+                rows="4"
+              ></textarea>
+            </label>
+          </div>
+          <p class="muted">
+            New reports start as Pending Assistance. Coordinates use decimal
+            degrees.
+          </p>
+          <button type="submit" class="primary-button" data-write>
+            Create report
+          </button>
+        </form>
+      </section>
+      <section id="manage" class="screen" hidden>
+        <p class="eyebrow">03 / COORDINATOR WORKSPACE</p>
+        <h2>Keep the response moving.</h2>
+        <p class="muted">
+          Update a report’s status or delete a report using its ID.
+        </p>
+        <p class="write-note message"></p>
+        <div class="manage-grid">
+          <form id="update-form" class="panel">
+            <h3>Update report status</h3>
+            <label
+              >Report ID<input
+                name="report_id"
+                type="number"
+                min="1"
+                step="1"
+                required /></label
+            ><label
+              >New status<select
+                name="status"
+                id="update-status"
+                required
+              ></select
+            ></label>
+            <p class="muted">Only the status will change.</p>
+            <button type="submit" class="primary-button" data-write>
+              Save status
+            </button>
+          </form>
+          <form id="delete-form" class="panel danger-panel">
+            <h3>Delete a report</h3>
+            <label
+              >Report ID<input
+                name="report_id"
+                type="number"
+                min="1"
+                step="1"
+                required
+            /></label>
+            <p class="muted">
+              Deletion also removes linked help requests under the current
+              database rules. You’ll confirm before deleting.
+            </p>
+            <button type="submit" class="delete-button" data-write>
+              Review deletion
+            </button>
+          </form>
+        </div>
+      </section>
+      <noscript
+        ><p class="message error">
+          Enable JavaScript to use the incident desk.
+        </p></noscript
+      >
+    </main>
+    <dialog id="details" aria-labelledby="details-title">
+      <div class="dialog-heading">
+        <h2 id="details-title">Report details</h2>
+        <button id="close-details" class="secondary-button">Close</button>
+      </div>
+      <div id="details-body"></div>
+    </dialog>
+    <dialog id="confirm" aria-labelledby="confirm-title">
+      <p class="eyebrow">PLEASE CONFIRM</p>
+      <h2 id="confirm-title">Delete incident report?</h2>
+      <p id="delete-description"></p>
+      <p>Linked help requests will also be deleted. This cannot be undone.</p>
+      <p id="delete-error" class="message error" role="alert" hidden></p>
+      <div class="form-actions">
+        <button id="cancel-delete" class="secondary-button" autofocus>
+          Cancel</button
+        ><button id="confirm-delete" class="delete-button">
+          Delete report
         </button>
       </div>
-    </div>
-  </header>
-  <nav class="navigation" aria-label="Main navigation">
-    <div class="nav-inner">
-      <button type="button" data-screen="home">Home</button><button type="button"
-        data-screen="browse">Incidents</button><button type="button" data-screen="report">Report an
-        Incident</button><button type="button" data-screen="response">Response Desk</button><button type="button"
-        data-screen="resources">Resources</button><button type="button" data-screen="people">People &amp;
-        Units</button><button type="button" data-screen="posts">Community Posts</button>
-    </div>
-  </nav>
-  <main id="main" tabindex="-1">
-    <p id="app-error" class="message error" role="alert" hidden></p>
-    <div id="screens"></div>
-    <noscript>
-      <p class="message error">
-        Enable JavaScript to use the frontend demo.
-      </p>
-    </noscript>
-  </main>
-  <dialog id="details-dialog" aria-labelledby="details-heading">
-    <div class="dialog-heading">
-      <h2 id="details-heading">Details</h2>
-      <button type="button" id="close-details" class="secondary-button">
-        Close
-      </button>
-    </div>
-    <div id="details-content"></div>
-  </dialog>
-  <dialog id="confirm-dialog" aria-labelledby="confirm-heading">
-    <p class="eyebrow">PLEASE CONFIRM</p>
-    <h2 id="confirm-heading">Delete this post?</h2>
-    <p id="confirm-description"></p>
-    <div class="form-actions">
-      <button type="button" id="confirm-cancel" class="secondary-button" autofocus>
-        Cancel</button><button type="button" id="confirm-accept" class="delete-button">
-        Delete post
-      </button>
-    </div>
-  </dialog>
-  <footer>
-    <p>Disaster Request and Resource Management System</p>
-    <p id="storage-note">
-      Incident reports are fetched from the API · Other demo data is saved in
-      this browser when available
-    </p>
-  </footer>
-</body>
-
+    </dialog>
+    <footer>
+      <p>Disaster Request and Resource Management System</p>
+      <p id="footer-mode">Incident desk · Phase 4</p>
+    </footer>
+  </body>
 </html>
