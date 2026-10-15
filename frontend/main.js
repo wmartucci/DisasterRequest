@@ -676,9 +676,10 @@ $("#close-details").addEventListener("click", () => {
 
 document.querySelectorAll("[data-screen]").forEach((button) => {
   button.addEventListener("click", () => {
-  clearMessages();
-  show(button.dataset.screen);
-}),
+    clearMessages();
+    show(button.dataset.screen);
+  });
+});
 
 $("#filters").addEventListener("submit", (event) => {
   event.preventDefault();
