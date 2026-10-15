@@ -124,6 +124,10 @@ CREATE TABLE resources (
     quantity INTEGER NOT NULL 
         CONSTRAINT resource_quantity_gt_zero
         CHECK(quantity >= 0),
+    request_id INTEGER
+        CONSTRAINT resource_request_fk
+        REFERENCES help_requests(request_id)
+        ON DELETE SET NULL,
     volunteer_id INTEGER 
         CONSTRAINT resource_volunteer_fk
         REFERENCES volunteers(volunteer_id)
