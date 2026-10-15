@@ -11,7 +11,6 @@ load_dotenv(".env.local", override=True)
 
 def get_connection():
     url = os.environ.get("DATABASE_URL")
-    print(url)
     if url:
         return psycopg2.connect(url)
     raise RuntimeError("DATABASE_URL is not configured.")
@@ -37,8 +36,7 @@ def run_query(sql, params=None):
             rows = [dict(row) for row in cur.fetchall()]
         return rows
     finally:
-        # "finally" runs even if the query failed, so the connection is
-        # always closed. Leaving connections open wastes database resources.
+        # connection always needs to be closed, even if an error occurred
         conn.close()
 
 
@@ -100,15 +98,14 @@ def run_change_returning(sql, params=None):
 # --------------------------------------------------------------------------------#
 
 # --------- CREATE (the C in CRUD) ---------
-
-
-# create a new community member in the database. Returns the newly created row.
 def create_community_member(first, last, street_address, city, state, tel_no):
+    # create a new community member in the database. Returns the newly created row.
     return run_change_returning(
         "INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no) "
         "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
         (first, last, street_address, city, state, tel_no),
     )
+
 
 
 # --------- READ (the R in CRUD) ----------
@@ -166,13 +163,19 @@ def search_incident_reports_by_id(report_id):
 
 
 # --------- UPDATE (the U in CRUD) ----------
-
+def update_incident_report_status(report_id, new_status):
+    # updates the status of an incident report by report_id.
+    return run_change(
+        "UPDATE incident_reports SET status = %s WHERE report_id = %s;",
+        (new_status, report_id),
+    )
 
 # --------- DELETE (the D in CRUD) ----------
 def delete_community_member(member_id):
+    # deletes a community member by member_id.
     return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
 
+def delete_incident_report(report_id):
+    # deletes an incident report by report_id.
+    return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
 
-# --------------------------------------------------------------------------------#
-# RESTful API functions to support http endpoints
-# --------------------------------------------------------------------------------#
