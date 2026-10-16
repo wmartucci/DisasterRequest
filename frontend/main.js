@@ -6,14 +6,6 @@ import {
   deleteIncidentReport as deleteReport,
 } from "./api.js";
 
-const createReport = (payload) =>
-  createIncidentReport({ ...payload, status: "Pending Assistance" });
-
-const readableError = (error) =>
-  error.message?.includes("[object Object]")
-    ? "The API rejected one or more fields. Check the report values and try again."
-    : error.message || "The request could not be completed. Please try again.";
-
 const $ = (selector) => document.querySelector(selector);
 
 const statuses = [
@@ -33,23 +25,31 @@ let loading = false;
 let generation = 0;
 let pendingDelete = null;
 
+function readableError(error) {
+  const text = error.message || "The request could not be completed.";
+
+  return text.includes("[object Object]")
+    ? "The API rejected one or more fields. Check the report values and try again."
+    : text;
+}
+
 function make(tag, text, className) {
-  const el = document.createElement(tag);
-
-  if (text != null) el.textContent = text;
-  if (className) el.className = className;
-
-  return el;
+  const element = document.createElement(tag);
+  if (text != null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
 }
 
-function options(select, values) {
-  values.forEach((value) => select.add(new Option(value, value)));
+function options(selector, values) {
+  values.forEach((value) => {
+    $(selector).add(new Option(value, value));
+  });
 }
 
-options($("#status-filter"), statuses);
-options($("#update-status"), statuses);
-options($("#type-filter"), types);
-options($("#create-type"), types);
+options("#status-filter", statuses);
+options("#update-status", statuses);
+options("#type-filter", types);
+options("#create-type", types);
 
 function clearMessages() {
   $("#error").hidden = true;
@@ -58,7 +58,6 @@ function clearMessages() {
 
 function message(text, error = false) {
   const target = $(error ? "#error" : "#notice");
-
   target.textContent = text;
   target.className = error ? "message error" : "message success";
   target.hidden = false;
@@ -85,6 +84,7 @@ function syncControls() {
     button.disabled = !enabled;
   });
 
+  $("#create-form [type=submit]").disabled = !enabled || !members.length;
   $("#refresh").disabled = busy || loading;
   $("#confirm-delete").disabled = busy;
   $("#cancel-delete").disabled = busy;
@@ -113,41 +113,77 @@ function reporter(report) {
       ]
         .filter(Boolean)
         .join(" ") || `Member #${report.member_id}`,
-
     phone: report.tel_no ?? member?.tel_no ?? "Phone unavailable",
   };
 }
 
 function date(value) {
   const parsed = new Date(value);
-
   return value && !Number.isNaN(parsed.getTime())
     ? parsed.toLocaleString()
     : "Not available";
+}
+
+function renderMembers() {
+  const previous = $("#member").value;
+
+  $("#member").replaceChildren(
+    new Option(
+      members.length ? "Select a community member" : "No members available",
+      "",
+    ),
+  );
+
+  members.forEach((member) => {
+    $("#member").add(
+      new Option(
+        `#${member.member_id} · ${member.first_name} ${member.last_name}`,
+        member.member_id,
+      ),
+    );
+  });
+
+  if (members.some((member) => String(member.member_id) === previous)) {
+    $("#member").value = previous;
+  }
 }
 
 function render() {
   $("#total").textContent = ready ? reports.length : "—";
 
   $("#pending").textContent = ready
-    ? reports.filter((r) => r.status === "Pending Assistance").length
+    ? reports.filter((report) => report.status === "Pending Assistance").length
     : "—";
 
   $("#resolved").textContent = ready
-    ? reports.filter((r) => r.status === "Resolved").length
+    ? reports.filter((report) => report.status === "Resolved").length
     : "—";
 
   const query = $("#query").value.trim().toLowerCase();
 
-  const filtered = reports.filter(
-    (r) =>
-      (!$("#status-filter").value || r.status === $("#status-filter").value) &&
-      (!$("#type-filter").value || r.type === $("#type-filter").value) &&
-      [r.report_id, reporter(r).name, r.address, r.city, r.state, r.description]
-        .join(" ")
-        .toLowerCase()
-        .includes(query),
-  );
+  const filtered = reports.filter((report) => {
+    const statusMatches =
+      !$("#status-filter").value ||
+      report.status === $("#status-filter").value;
+
+    const typeMatches =
+      !$("#type-filter").value ||
+      report.type === $("#type-filter").value;
+
+    const searchMatches = [
+      report.report_id,
+      reporter(report).name,
+      report.address,
+      report.city,
+      report.state,
+      report.description,
+    ]
+      .join(" ")
+      .toLowerCase()
+      .includes(query);
+
+    return statusMatches && typeMatches && searchMatches;
+  });
 
   $("#rows").replaceChildren();
 
@@ -215,7 +251,6 @@ function render() {
     details.type = "button";
     details.setAttribute("aria-label", `View report ${report.report_id}`);
     details.addEventListener("click", () => openDetails(report));
-    actions.append(details);
 
     const manage = make("button", "Manage", "secondary-button");
     manage.type = "button";
@@ -224,15 +259,13 @@ function render() {
     manage.addEventListener("click", () => {
       clearMessages();
       show("manage");
-
       $("#update-form [name=report_id]").value = report.report_id;
       $("#delete-form [name=report_id]").value = report.report_id;
       $("#update-status").value = report.status;
-
       $("#update-form [name=report_id]").focus();
     });
 
-    actions.append(manage);
+    actions.append(details, manage);
     cells[4].append(actions);
     $("#rows").append(row);
   });
@@ -272,16 +305,12 @@ function openDetails(report) {
 
     try {
       const url = new URL(report.image_url);
-
-      if (!["https:", "http:"].includes(url.protocol)) {
-        throw Error();
-      }
+      if (!["http:", "https:"].includes(url.protocol)) throw Error();
 
       const link = make("a", "Open attached image");
       link.href = url.href;
       link.target = "_blank";
       link.rel = "noopener noreferrer";
-
       value.append(link);
     } catch {
       value.textContent = "Image link unavailable";
@@ -296,7 +325,6 @@ function openDetails(report) {
 
 async function load() {
   const token = ++generation;
-
   loading = true;
   ready = false;
   render();
@@ -327,15 +355,19 @@ async function load() {
     );
   }
 
-  if (memberResult.status === "fulfilled" && Array.isArray(memberResult.value)) {
+  if (
+    memberResult.status === "fulfilled" &&
+    Array.isArray(memberResult.value)
+  ) {
     members = memberResult.value;
   } else if (ready) {
     message(
-      "Reports loaded, but additional community member details could not be loaded.",
+      "Reports loaded, but community members could not be loaded. Creating reports is unavailable until members load.",
       true,
     );
   }
 
+  renderMembers();
   render();
 }
 
@@ -367,14 +399,12 @@ function checkWrite() {
 
 async function mutate(operation) {
   if (busy) return;
-
   clearMessages();
 
   try {
     checkWrite();
     busy = true;
     syncControls();
-
     await operation();
   } catch (error) {
     message(readableError(error), true);
@@ -403,10 +433,8 @@ $("#create-form").addEventListener("submit", (event) => {
     payload.latitude = Number(payload.latitude);
     payload.longitude = Number(payload.longitude);
 
-    // Validate the format only.
-    // The database checks whether this member actually exists.
-    if (!Number.isSafeInteger(payload.member_id) || payload.member_id < 1) {
-      throw Error("Enter a valid positive member ID.");
+    if (!members.some((member) => Number(member.member_id) === payload.member_id)) {
+      throw Error("Choose an existing community member.");
     }
 
     if (!types.includes(payload.type)) {
@@ -428,7 +456,10 @@ $("#create-form").addEventListener("submit", (event) => {
       throw Error("Image URL must start with http:// or https://.");
     }
 
-    await createReport(payload);
+    await createIncidentReport({
+      ...payload,
+      status: "Pending Assistance",
+    });
 
     form.reset();
     await refreshAfterChange("Incident created.");
@@ -462,7 +493,7 @@ $("#delete-form").addEventListener("submit", (event) => {
     if (busy) return;
 
     const id = getId(event.currentTarget);
-    const report = reports.find((r) => Number(r.report_id) === id);
+    const report = reports.find((item) => Number(item.report_id) === id);
 
     if (!report) {
       throw Error(
@@ -485,22 +516,17 @@ $("#delete-form").addEventListener("submit", (event) => {
 $("#confirm-delete").addEventListener("click", () => {
   mutate(async () => {
     const id = pendingDelete;
-
-    if (id === null) {
-      throw Error("Choose a report to delete.");
-    }
+    if (id === null) throw Error("Choose a report to delete.");
 
     try {
       await deleteReport(id);
       await refreshAfterChange(`Report #${id} deleted.`);
-
       $("#confirm").close();
       pendingDelete = null;
       $("#delete-form").reset();
     } catch (error) {
       $("#delete-error").textContent = readableError(error);
       $("#delete-error").hidden = false;
-
       throw error;
     }
   });
@@ -512,11 +538,8 @@ $("#cancel-delete").addEventListener("click", () => {
 });
 
 $("#confirm").addEventListener("cancel", (event) => {
-  if (busy) {
-    event.preventDefault();
-  } else {
-    pendingDelete = null;
-  }
+  if (busy) event.preventDefault();
+  else pendingDelete = null;
 });
 
 $("#close-details").addEventListener("click", () => {
