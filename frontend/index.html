@@ -41,7 +41,6 @@
     <p id="notice" class="message" role="status" hidden></p>
     <p id="error" class="message error" role="alert" hidden></p>
 
-    <!-- HOME -->
     <section id="home" class="screen" aria-labelledby="home-title">
       <p class="eyebrow">WELCOME / COMMUNITY RESPONSE</p>
       <h2 id="home-title">A clearer picture. A faster response.</h2>
@@ -72,12 +71,10 @@
         <article class="panel home-action">
           <p class="eyebrow">01 / EXPLORE</p>
           <h3>See the community picture.</h3>
-
           <p class="muted">
             Search incidents by report ID, name, city, or description.
             Filter by status and incident type, and view reporter details.
           </p>
-
           <button class="primary-button" data-screen="browse">
             View reports
           </button>
@@ -86,12 +83,10 @@
         <article class="panel home-action">
           <p class="eyebrow">02 / REPORT</p>
           <h3>Make a need visible.</h3>
-
           <p class="muted">
-            Create an incident report using a community member’s ID,
-            location, incident type, and description.
+            Create an incident report for an existing community member
+            with its location, incident type, and description.
           </p>
-
           <button class="primary-button" data-screen="create">
             Create a report
           </button>
@@ -100,12 +95,10 @@
         <article class="panel home-action">
           <p class="eyebrow">03 / COORDINATE</p>
           <h3>Keep reports up to date.</h3>
-
           <p class="muted">
             Update a report’s status or review a deletion using its
             report ID. Deletions require confirmation.
           </p>
-
           <button class="primary-button" data-screen="manage">
             Manage reports
           </button>
@@ -113,13 +106,11 @@
       </div>
     </section>
 
-    <!-- READ AND SEARCH -->
     <section id="browse" class="screen" hidden>
       <div class="section-heading">
         <div>
           <p class="eyebrow">01 / COMMUNITY OVERVIEW</p>
           <h2>Incident reports</h2>
-
           <p class="muted">
             Reports and the community members behind them.
           </p>
@@ -154,9 +145,7 @@
           </select>
         </label>
 
-        <button type="reset" class="secondary-button">
-          Clear
-        </button>
+        <button type="reset" class="secondary-button">Clear</button>
       </form>
 
       <p id="count" class="muted" aria-live="polite"></p>
@@ -166,7 +155,6 @@
           <caption class="sr-only">
             Incident reports with community member details
           </caption>
-
           <thead>
             <tr>
               <th>Report</th>
@@ -176,19 +164,17 @@
               <th>Actions</th>
             </tr>
           </thead>
-
           <tbody id="rows"></tbody>
         </table>
       </div>
     </section>
 
-    <!-- CREATE -->
     <section id="create" class="screen" hidden>
       <p class="eyebrow">02 / REPORT AN INCIDENT</p>
       <h2>Make it visible.</h2>
 
       <p class="muted">
-        Enter a community member’s numeric ID and tell us where help is needed.
+        Choose an existing community member and tell us where help is needed.
       </p>
 
       <p class="write-note message"></p>
@@ -196,25 +182,15 @@
       <form id="create-form" class="panel">
         <div class="form-grid">
           <label>
-            Community member ID
-            <input
-              name="member_id"
-              id="member"
-              type="number"
-              min="1"
-              step="1"
-              required
-              placeholder="Enter member ID"
-            />
+            Community member
+            <select name="member_id" id="member" required>
+              <option value="">Loading members…</option>
+            </select>
           </label>
 
           <label>
             Incident type
-            <select
-              name="type"
-              id="create-type"
-              required
-            ></select>
+            <select name="type" id="create-type" required></select>
           </label>
 
           <label>
@@ -304,7 +280,6 @@
       </form>
     </section>
 
-    <!-- UPDATE AND DELETE -->
     <section id="manage" class="screen" hidden>
       <p class="eyebrow">03 / COORDINATOR WORKSPACE</p>
       <h2>Keep the response moving.</h2>
@@ -332,11 +307,7 @@
 
           <label>
             New status
-            <select
-              name="status"
-              id="update-status"
-              required
-            ></select>
+            <select name="status" id="update-status" required></select>
           </label>
 
           <p class="muted">Only the status will change.</p>
@@ -379,24 +350,17 @@
     </noscript>
   </main>
 
-  <!-- REPORT DETAILS -->
   <dialog id="details" aria-labelledby="details-title">
     <div class="dialog-heading">
       <h2 id="details-title">Report details</h2>
-
-      <button id="close-details" class="secondary-button">
-        Close
-      </button>
+      <button id="close-details" class="secondary-button">Close</button>
     </div>
-
     <div id="details-body"></div>
   </dialog>
 
-  <!-- DELETE CONFIRMATION -->
   <dialog id="confirm" aria-labelledby="confirm-title">
     <p class="eyebrow">PLEASE CONFIRM</p>
     <h2 id="confirm-title">Delete incident report?</h2>
-
     <p id="delete-description"></p>
     <p>Linked help requests will also be deleted. This cannot be undone.</p>
     <p id="delete-error" class="message error" role="alert" hidden></p>
@@ -405,7 +369,6 @@
       <button id="cancel-delete" class="secondary-button" autofocus>
         Cancel
       </button>
-
       <button id="confirm-delete" class="delete-button">
         Delete report
       </button>
