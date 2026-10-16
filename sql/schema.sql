@@ -23,7 +23,7 @@ CREATE TABLE response_coordinators (
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
         ),
-    email TEXT NOT NULL 
+    email TEXT NOT NULL UNIQUE
         CONSTRAINT coordinator_valid_email 
         CHECK (
             email LIKE '_%@_%._%'
