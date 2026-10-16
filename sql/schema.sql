@@ -57,7 +57,7 @@ CREATE TABLE incident_reports (
 
 CREATE TABLE posts (
     post_id SERIAL PRIMARY KEY,
-    member_id INTEGER 
+    member_id INTEGER NOT NULL
         CONSTRAINT posts_members_fk
         REFERENCES community_members(member_id)
         ON DELETE CASCADE,
@@ -82,7 +82,7 @@ CREATE TABLE response_units (
 
 CREATE TABLE help_requests (
     request_id SERIAL PRIMARY KEY,
-    report_id INTEGER NOT NULL
+    report_id INTEGER NOT NULL UNIQUE
         CONSTRAINT request_report_fk
         REFERENCES incident_reports(report_id)
         ON DELETE CASCADE,
@@ -128,7 +128,7 @@ CREATE TABLE resources (
         CONSTRAINT resource_request_fk
         REFERENCES help_requests(request_id)
         ON DELETE SET NULL,
-    volunteer_id INTEGER 
+    volunteer_id INTEGER NOT NULL
         CONSTRAINT resource_volunteer_fk
         REFERENCES volunteers(volunteer_id)
         ON DELETE SET NULL
