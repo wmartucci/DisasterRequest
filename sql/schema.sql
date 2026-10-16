@@ -23,9 +23,9 @@ CREATE TABLE response_coordinators (
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
         ),
-    email TEXT NOT NULL UNIQUE
-        CONSTRAINT coord_email_unique 
-        CHECK (
+    email TEXT NOT NULL 
+        CONSTRAINT coord_email_unique UNIQUE
+        CONSTRAINT coord_email_format CHECK (
             email LIKE '_%@_%._%'
         )
 );
