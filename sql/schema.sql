@@ -134,4 +134,12 @@ CREATE TABLE resources (
         ON DELETE SET NULL
 );
 
+CREATE TABLE districts (
+  district_id SERIAL PRIMARY KEY,
+  district_name TEXT NOT NULL,
+  boundary GEOMETRY(Polygon, 4326) NOT NULL
+);
+
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);
+CREATE INDEX unit_location_index ON response_units USING gist(location);
+CREATE INDEX districts_boundaries_index ON districts USING GIST(boundary);
