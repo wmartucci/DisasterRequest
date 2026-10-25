@@ -140,6 +140,30 @@ CREATE TABLE districts (
   boundary GEOMETRY(Polygon, 4326) NOT NULL
 );
 
+CREATE TABLE users (
+  user_id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  role TEXT NOT NULL
+    CONSTRAINT role_type_valid
+    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer'))
+);
+
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);
 CREATE INDEX unit_location_index ON response_units USING gist(location);
 CREATE INDEX districts_boundaries_index ON districts USING GIST(boundary);
+
+CREATE VIEW incident_types_by_district AS
+SELECT 
+  d.district_name, 
+  COUNT(*) AS total_incidents,
+  COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count,
+  COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count,
+  COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count,
+  COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count
+FROM districts d
+LEFT JOIN incident_reports i ON ST_Contains(d.boundary, i.location)
+GROUP BY d.district_name
+ORDER BY total_incidents DESC;

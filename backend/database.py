@@ -8,6 +8,12 @@ from psycopg2.extras import RealDictCursor
 load_dotenv(".env")
 load_dotenv(".env.local", override=True)
 
+class DuplicateValueError(Exception):
+    pass
+
+class InvalidTypeError(Exception):
+    pass
+
 # --------------------------------------------------------------------------------#
 # FUNCTIONS TO ALLOW QUERYING DATABASE
 # --------------------------------------------------------------------------------#
@@ -210,3 +216,18 @@ def delete_community_member(member_id):
 def delete_incident_report(report_id):
     # deletes an incident report by report_id.
     return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
+
+# ---------- Authentication -------------
+def create_user(first_name, last_name, role, username, password_hash):
+    try:
+        new_user_result = run_change_returning("INSERT INTO users(username, password_hash, first_name, last_name, role) VALUES (%s, %s, %s, %s, %s) RETURNING *;", 
+                                (username, password_hash, first_name, last_name, role))
+        return new_user_result
+    except psycopg2.errors.UniqueViolation as e:
+        raise DuplicateValueError(f"Username {username} already exists") from e
+    except psycopg2.errors.CheckViolation as e:
+        raise InvalidTypeError(f"Role type '{role}' is invalid") from e
+
+def get_password_hash(user_name):
+    result = run_query("SELECT password_hash, role FROM users WHERE username = %s;", (user_name,))
+    return result[0] if result else None
