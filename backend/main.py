@@ -120,6 +120,7 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
 # --------- UPDATE endpoints ----------
 @app.patch("/api/incident-reports/{report_id}")
 def update_incident_report_status(report_id: int, update: StatusUpdate) -> dict:
+    # Required role: Response Coordinator, Responder
     result = db.update_incident_report_status(report_id, update.new_status)
     if result == 0:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -129,6 +130,8 @@ def update_incident_report_status(report_id: int, update: StatusUpdate) -> dict:
 # --------- DELETE endpoints ----------
 @app.delete("/api/incident-reports/{report_id}")
 def delete_incident_report(report_id: int) -> dict:
+    # Required role: Response Coordinator, Community Member
+    # If community member, must match community member ID that created it
     result = db.delete_incident_report(report_id)
     if result == 0:
         raise HTTPException(status_code=404, detail="Report not found")
@@ -158,6 +161,7 @@ def create_user(user_details: User):
                                    user_details.role, user_details.user_name, hashed_password)
     new_user_details = dict(zip(columns, rows[0]))
     del new_user_details["password_hash"]
+    # Add into corresponding role table
     return new_user_details
 
 # Authenticate user
@@ -188,3 +192,12 @@ def logout(request: Request):
 def user_details(user = Depends(get_current_user)):
     user_info = db.get_user_details(user["user_id"])
     return user_info
+
+# Get all incident reports - include GeoJSON y/n
+@app.get("/api/incidents")
+def get_incidents(type: str = None, status: str = None, district_id: int = None, as_geojson: bool = False):
+    return db.get_incidents(type, status, district_id, as_geojson)
+
+# Get all incident reports inside a district
+# Get incident report type counts by district
+# Get incident report status counts by district

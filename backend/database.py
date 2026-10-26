@@ -235,3 +235,50 @@ def get_password_hash(user_name):
 def get_user_details(user_id):
     result = run_query("SELECT user_id, first_name, last_name, username, role FROM users WHERE user_id = %s", (user_id,))
     return result[0] if result else None
+
+def get_incidents(type, status, district_id, as_geojson):
+    fields = ["report_id", "coordinator_id", "member_id", "type", "address", "city", "state", "report_timestamp", "image_url", "description", "status", "location"]
+    if district_id:
+        fields = map(lambda x: "i." + x, fields)
+    
+    select_query = "SELECT " + ', '.join(fields) + " FROM incident_reports"
+    params = None
+    where_clause = None
+
+    if type and not status:
+        where_clause = "type = %s"
+        params = (type, )
+    elif status and not type:
+        where_clause = "status = %s"
+        params = (status, )
+    elif type and status:
+        where_clause = "type = %s AND status = %s"
+        params = (type, status)
+
+    final_query = select_query
+
+    if district_id:
+        select_query = select_query + " i INNER JOIN districts d ON ST_Within(i.location, d.boundary) WHERE d.district_id = %s"
+        if params:
+            params = (district_id,) + params
+        else:
+            params = (district_id,)
+        if where_clause:
+            final_query = select_query + " AND " + where_clause
+        else:
+            final_query = select_query
+    else:
+        if where_clause:
+            final_query = select_query + " WHERE " + where_clause
+
+    if as_geojson:
+        final_query = "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(ST_AsGeoJSON(t.*)::json)) FROM (" + final_query + ") as t;"
+        result = run_query(final_query, params=params)
+        if 'json_build_object' in result[0]:
+            return result[0]['json_build_object']
+        else:
+            return result
+    
+    final_query = final_query + ";"
+
+    return run_query(final_query, params=params)
