@@ -229,5 +229,9 @@ def create_user(first_name, last_name, role, username, password_hash):
         raise InvalidTypeError(f"Role type '{role}' is invalid") from e
 
 def get_password_hash(user_name):
-    result = run_query("SELECT password_hash, role FROM users WHERE username = %s;", (user_name,))
+    result = run_query("SELECT user_id, password_hash, role FROM users WHERE username = %s;", (user_name,))
+    return result[0] if result else None
+
+def get_user_details(user_id):
+    result = run_query("SELECT user_id, first_name, last_name, username, role FROM users WHERE user_id = %s", (user_id,))
     return result[0] if result else None

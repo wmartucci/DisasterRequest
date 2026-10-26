@@ -1,9 +1,14 @@
-from fastapi import FastAPI, HTTPException, Query, Request
+from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel
 from pwdlib import PasswordHash
+from starlette.middleware.sessions import SessionMiddleware
+from dotenv import load_dotenv
 from . import database as db
+import os
+
+load_dotenv()
 
 app = FastAPI(title="Disaster Request API", version="1.0.0")
 password_hasher = PasswordHash.recommended()
@@ -21,6 +26,14 @@ app.add_middleware(
     allow_headers=["*"],
 )
 
+app.add_middleware(
+    SessionMiddleware,
+    secret_key=os.environ["SESSION_SECRET_KEY"],
+    session_cookie="session",
+    max_age=8*60*60,
+    same_site="lax",
+    https_only=False
+)
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):
@@ -50,6 +63,29 @@ class UserLogin(User):
     first_name: str | None = None
     last_name: str | None = None
     role: str | None = None
+
+# --------- Dependencies -------------
+def get_current_user(request: Request):
+    user_id = request.session.get("user_id")
+    role = request.session.get("role")
+
+    if user_id is None or role is None:
+        raise HTTPException(
+            status_code=401,
+            detail="Not authenticated"
+        )
+
+    return {"user_id": user_id, "role": role}
+
+def require_roles(*allowed_roles):
+    def check_role(user = Depends(get_current_user)):
+        if user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden"
+            )
+        return user
+    return check_role
 
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
@@ -126,16 +162,29 @@ def create_user(user_details: User):
 
 # Authenticate user
 @app.post("/api/login")
-def login_user(credentials: UserLogin):
+def login(request: Request, credentials: UserLogin):
     # Get hashed password from database
     hash_details = db.get_password_hash(credentials.user_name)
     if hash_details:
         stored_hash = hash_details["password_hash"]
         is_valid = password_hasher.verify(credentials.password, stored_hash)
         if is_valid:
+            request.session["user_id"] = hash_details["user_id"]
+            request.session["role"] = hash_details["role"]
+            # return Response(status_code=200)
             return {"message": f"Authentication successful",
                     "role": f"{hash_details['role']}"}
         else:
             raise HTTPException(status_code=401, detail=f"Invalid password")
     else:
         raise HTTPException(status_code=401, detail=f"Invalid username")
+
+@app.post("/api/logout")
+def logout(request: Request):
+    request.session.clear()
+    return Response(status_code=204)
+
+@app.get("/api/me")
+def user_details(user = Depends(get_current_user)):
+    user_info = db.get_user_details(user["user_id"])
+    return user_info
