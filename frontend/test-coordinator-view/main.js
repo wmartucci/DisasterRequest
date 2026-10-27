@@ -14,6 +14,7 @@ async function loadIncidentReports({type = null, status = null, district_id = nu
 
     const response = await fetch(`http://127.0.0.1:8000/api/incidents?${params.toString()}`);
     const data = await response.json()
+    
     return data;
 }
 
@@ -126,3 +127,16 @@ const card3 = document.getElementById("card-3");
 card3.addEventListener("click", handleCardClick);
 const card4 = document.getElementById("card-4");
 card4.addEventListener("click", handleCardClick);
+
+async function loadIncidentReportStats() {
+    const response = await fetch(`http://127.0.0.1:8000/api/incidents/stats`);
+    const data = await response.json()
+    
+    return data;
+}
+
+const incident_stats = await loadIncidentReportStats();
+card1.querySelector("p").textContent = incident_stats[0]["fire_count"];
+card2.querySelector("p").textContent = incident_stats[0]["power_count"];
+card3.querySelector("p").textContent = incident_stats[0]["tree_count"];
+card4.querySelector("p").textContent = incident_stats[0]["flood_count"];

@@ -282,3 +282,6 @@ def get_incidents(type, status, district_id, as_geojson):
     final_query = final_query + ";"
 
     return run_query(final_query, params=params)
+
+def get_incident_stats():
+    return run_query("SELECT COUNT(*) AS total_incidents, COUNT(*) FILTER (WHERE type = 'Flood') AS flood_count, COUNT(*) FILTER (WHERE type = 'Fallen Tree') AS tree_count, COUNT(*) FILTER (WHERE type = 'Power') AS power_count, COUNT(*) FILTER (WHERE type = 'Fire') AS fire_count FROM incident_reports;")

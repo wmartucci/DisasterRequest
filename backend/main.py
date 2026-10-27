@@ -198,6 +198,11 @@ def user_details(user = Depends(get_current_user)):
 def get_incidents(type: str = None, status: str = None, district_id: int = None, as_geojson: bool = False):
     return db.get_incidents(type, status, district_id, as_geojson)
 
+# Get count of incident report by type and total incident count
+@app.get("/api/incidents/stats")
+def get_incident_stats():
+    return db.get_incident_stats()
+
 # Get all incident reports inside a district
 # Get incident report type counts by district
 # Get incident report status counts by district
