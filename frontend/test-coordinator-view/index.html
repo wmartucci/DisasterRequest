@@ -3,6 +3,7 @@
     <script type="module" src="https://js.arcgis.com/calcite-components/5.2"></script>
     <script type="module" src="https://js.arcgis.com/5.1"></script>
     <link rel="stylesheet" href="style.css">
+    <script src="main.js" type="module"></script>
 </head>
 <body>
     <calcite-shell>
@@ -10,8 +11,26 @@
             <calcite-navigation-logo slot="logo" icon="rain-thunder" heading="Disaster Response"></calcite-navigation-logo>
         </calcite-navigation>
         <div class="main-layout-grid">
+            <div id="status-boxes">
+                <div id="card-1">
+                    <p class="inner-card">Test 1</p>
+                    <p>Fires</p>
+                </div>
+                <div id="card-2">
+                    <p class="inner-card">Test 1</p>
+                    <p>Power Outages</p>
+                </div>
+                <div id="card-3">
+                    <p class="inner-card">Test 1</p>
+                    <p>Fallen Trees</p>
+                </div>
+                <div id="card-4">
+                    <p class="inner-card">Test 1</p>
+                    <p>Floods</p>
+                </div>
+            </div>
             <calcite-panel id="map" heading="Map" scale="s">
-                <arcgis-map item-id="05e015c5f0314db9a487a9b46cb37eca" basemap="satellite">
+                <arcgis-map basemap="topo-vector" center="-82.54947363304201, 35.580068654542416" zoom=11>
                 </arcgis-map>
             </calcite-panel>
             <calcite-table id="table" caption="Simple table">
