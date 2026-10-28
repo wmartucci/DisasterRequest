@@ -1,1 +1,208 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Response Coordinator | Incident Desk</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="portal/portal.css" />
+  <script type="module" src="portal/coordinator.js"></script>
+</head>
+
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow">COMMUNITY RESPONSE HUB / COORDINATOR DESK</p>
+        <h1>See it all.<br />Send help where it counts<span>.</span></h1>
+        <p>Spot what needs action, assign a unit, and keep every report moving.</p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navigation" aria-label="Response coordinator navigation">
+    <div class="nav-inner">
+      <button data-screen="dashboard">Dashboard</button>
+      <button data-screen="help">Help requests</button>
+      <button data-screen="manage">Manage reports</button>
+
+      <div id="account" class="actor-bar" hidden>
+        <span id="account-name"></span>
+        <button id="logout" type="button" class="secondary-button">Log out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <p id="notice" class="message" role="status" hidden></p>
+    <p id="error" class="message error" role="alert" hidden></p>
+
+    <!-- ============ FINISH PROFILE (first sign-in only) ============ -->
+    <section id="profile" class="panel" aria-labelledby="profile-title" hidden>
+      <p class="eyebrow">ONE LAST STEP</p>
+      <h2 id="profile-title">Finish your profile.</h2>
+      <p class="muted">Add your phone number and email so the team can reach you.</p>
+      <form id="profile-form">
+          <label>
+            Phone number
+            <input name="tel_no" required maxlength="12" inputmode="tel" placeholder="540-555-1234" autocomplete="tel" />
+          </label>
+          <label>
+            Work email
+            <input name="email" type="email" required maxlength="200" autocomplete="email" />
+          </label>
+        <button type="submit" class="primary-button">Save and continue</button>
+      </form>
+    </section>
+
+    <!-- ============ DASHBOARD ============ -->
+    <section id="dashboard" class="screen" aria-labelledby="dashboard-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">01 / DASHBOARD</p>
+          <h2 id="dashboard-title">The situation right now.</h2>
+          <p class="muted">Counts update when you refresh.</p>
+        </div>
+        <button id="dashboard-refresh" class="secondary-button">Refresh</button>
+      </div>
+
+      <div class="stats-grid" id="stat-cards" aria-label="Report totals"></div>
+
+      <div class="dash-grid">
+        <article class="panel">
+          <h3>Reports by status</h3>
+          <ul id="by-status" class="count-bars"></ul>
+        </article>
+        <article class="panel">
+          <h3>Reports by type</h3>
+          <ul id="by-type" class="count-bars"></ul>
+        </article>
+        <article class="panel">
+          <h3>Help requests by status</h3>
+          <ul id="by-help" class="count-bars"></ul>
+        </article>
+      </div>
+
+      <h3 style="margin-top:28px">Needs action</h3>
+      <p class="muted">Oldest reports that have no help request yet and aren’t resolved.</p>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Reports that still need a help request</caption>
+          <thead>
+            <tr><th>Report</th><th>Reported by</th><th>Location</th><th>Status</th><th>Action</th></tr>
+          </thead>
+          <tbody id="needs-action"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ HELP REQUESTS ============ -->
+    <section id="help" class="screen" aria-labelledby="help-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">02 / HELP REQUESTS</p>
+          <h2 id="help-title">Send the right unit.</h2>
+          <p class="muted">Assign a response unit to a report, then track the request until it’s done.</p>
+        </div>
+        <button id="help-refresh" class="secondary-button">Refresh</button>
+      </div>
+
+      <h3>Waiting for a unit</h3>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Reports with no help request</caption>
+          <thead>
+            <tr><th>Report</th><th>Reported by</th><th>Location</th><th>Action</th></tr>
+          </thead>
+          <tbody id="waiting"></tbody>
+        </table>
+      </div>
+
+      <h3 style="margin-top:28px">Open and past requests</h3>
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">Help requests</caption>
+          <thead>
+            <tr><th>Report</th><th>Unit</th><th>Requested</th><th>Request status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="requests"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ MANAGE REPORTS ============ -->
+    <section id="manage" class="screen" aria-labelledby="manage-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">03 / MANAGE REPORTS</p>
+          <h2 id="manage-title">Keep the response moving.</h2>
+          <p class="muted">Change a report’s status or remove it. Saving a status marks you as its coordinator.</p>
+        </div>
+        <button id="manage-refresh" class="secondary-button">Refresh</button>
+      </div>
+
+      <form id="manage-filters" class="filter-bar">
+        <label>
+          Search
+          <input id="manage-query" type="search" placeholder="Name, address, city or description" />
+        </label>
+        <label>
+          Status
+          <select id="manage-status"><option value="">All statuses</option></select>
+        </label>
+        <button type="reset" class="secondary-button">Clear</button>
+      </form>
+      <p id="manage-count" class="muted" aria-live="polite"></p>
+
+      <div class="table-wrap">
+        <table>
+          <caption class="sr-only">All incident reports</caption>
+          <thead>
+            <tr><th>Report</th><th>Reported by</th><th>Location</th><th>Coordinator</th><th>Status</th><th>Actions</th></tr>
+          </thead>
+          <tbody id="manage-rows"></tbody>
+        </table>
+      </div>
+    </section>
+  </main>
+
+  <!-- Assign a unit -->
+  <dialog id="assign" aria-labelledby="assign-title">
+    <p class="eyebrow">ASSIGN A RESPONSE UNIT</p>
+    <h2 id="assign-title"></h2>
+    <p id="assign-note" class="muted"></p>
+    <form id="assign-form">
+      <label>
+        Response unit (nearest first)
+        <select name="unit_id" id="assign-unit" required></select>
+      </label>
+      <label class="check">
+        <input type="checkbox" name="called_911" />
+        911 has been called
+      </label>
+      <div class="form-actions">
+        <button type="button" id="assign-cancel" class="secondary-button">Cancel</button>
+        <button type="submit" class="primary-button">Send request</button>
+      </div>
+    </form>
+  </dialog>
+
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <p class="eyebrow">PLEASE CONFIRM</p>
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <div class="form-actions">
+      <button id="confirm-no" class="secondary-button" autofocus>Cancel</button>
+      <button id="confirm-yes" class="delete-button"></button>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>Disaster Request and Resource Management System</p>
+    <p>Response coordinator view</p>
+  </footer>
+</body>
+</html>
