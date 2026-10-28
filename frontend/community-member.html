@@ -6,8 +6,78 @@
   <meta name="color-scheme" content="dark" />
   <title>Community Member | Incident Desk</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="portal/portal.css" />
-  <script type="module" src="portal/member.js"></script>
+  <style>
+/* Extra styles for the Community Member and Response Coordinator screens.
+   Loaded after ../style.css, so it reuses the same colours and buttons. */
+
+.actor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+}
+.actor-bar label { margin: 0; white-space: nowrap; }
+.actor-bar select { padding: 6px 10px; max-width: 240px; }
+.actor-note {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.card-list { display: grid; gap: 14px; margin: 18px 0; padding: 0; list-style: none; }
+.card-list > li {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.card-head h3 { margin: 0; }
+.card-meta { color: var(--muted); font-size: 13px; }
+.card-body { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+
+/* Progress steps on "My reports" */
+.steps { display: flex; gap: 6px; margin: 14px 0 4px; padding: 0; list-style: none; }
+.steps li {
+  flex: 1;
+  padding-top: 6px;
+  border-top: 4px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.steps li.done { border-top-color: var(--teal); color: var(--text); }
+
+.count-bars { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+.count-bars li { display: grid; grid-template-columns: 150px 1fr 36px; gap: 12px; align-items: center; font-size: 14px; }
+.count-bars .bar { height: 12px; border-radius: 6px; background: var(--border); overflow: hidden; }
+.count-bars .bar span { display: block; height: 100%; background: var(--teal); }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; }
+
+.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.inline-form label { margin: 0; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: auto; }
+.status-chip.help-pending { background: transparent; }
+.tab-note { margin: 0 0 10px; }
+
+/* Log out button inside the nav bar (the nav styles buttons as plain text) */
+.navigation .actor-bar .secondary-button {
+  padding: 8px 14px;
+  border: 1px solid #37505a;
+  background: #192c33;
+  color: var(--text);
+}
+.navigation .actor-bar .secondary-button:hover { background: #253d45; }
+.actor-bar strong, #account-name { color: var(--text); }
+
+/* Finish-profile form */
+#profile { max-width: 520px; }
+#profile-form label { margin-bottom: 16px; }
+
+  </style>
 </head>
 
 <body>
@@ -182,5 +252,435 @@
     <p>Disaster Request and Resource Management System</p>
     <p>Community member view</p>
   </footer>
+  <script type="module">
+// API calls for the Community Member and Response Coordinator pages.
+// Reports are listed / updated / deleted with the functions in ../api.js;
+// this file holds the calls that are new. The server knows who is asking from
+// the login cookie, so none of these send a member or coordinator id.
+
+const API_BASE_URL = "http://localhost:8000";
+
+async function request(path, { method = "GET", body } = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    credentials: "include",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    // Signed out or session expired: go to the login page.
+    if (response.status === 401) window.location.replace("login.html");
+
+    let detail = `Request failed (${response.status})`;
+    try {
+      const data = await response.json();
+      if (typeof data.detail === "string") detail = data.detail;
+      else if (Array.isArray(data.detail)) {
+        detail = data.detail.map((d) => d.msg).join(". ");
+      }
+    } catch {
+      // keep the status-based message
+    }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+// ---- both roles
+const getProfile = () => request("/api/portal/profile");
+const createProfile = (profile) =>
+  request("/api/portal/profile", { method: "POST", body: profile });
+
+// ---- community member
+const getMyReports = () => request("/api/my-reports");
+const createMyReport = (report) =>
+  request("/api/my-reports", { method: "POST", body: report });
+const deleteMyReport = (id) => request(`/api/my-reports/${id}`, { method: "DELETE" });
+const getPosts = () => request("/api/posts");
+const createPost = (post) => request("/api/posts", { method: "POST", body: post });
+const deletePost = (id) => request(`/api/posts/${id}`, { method: "DELETE" });
+
+// ---- response coordinator
+const getSummary = () => request("/api/dashboard/summary");
+const getUnits = (reportId) =>
+  request(`/api/response-units?report_id=${encodeURIComponent(reportId)}`);
+const getHelpRequests = () => request("/api/help-requests");
+const createHelpRequest = (body) =>
+  request("/api/help-requests", { method: "POST", body });
+const updateHelpRequest = (id, newStatus) =>
+  request(`/api/help-requests/${id}`, { method: "PATCH", body: { new_status: newStatus } });
+const deleteHelpRequest = (id) =>
+  request(`/api/help-requests/${id}`, { method: "DELETE" });
+
+// ---- reports (same server endpoints that api.js uses)
+const getIncidentReports = () => request("/api/incident-reports");
+const updateIncidentReportStatus = (id, newStatus) =>
+  request(`/api/incident-reports/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { new_status: newStatus },
+  });
+const deleteIncidentReport = (id) =>
+  request(`/api/incident-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+const logout = () => request("/api/logout", { method: "POST" });
+
+// Small helpers shared by member.js and coordinator.js.
+
+
+const $ = (selector) => document.querySelector(selector);
+
+function make(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text != null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+
+function date(value) {
+  const parsed = new Date(value);
+  return value && !Number.isNaN(parsed.getTime())
+    ? parsed.toLocaleString()
+    : "Not available";
+}
+
+function chip(status) {
+  return make("span", status, `status-chip ${status === "Resolved" || status === "Completed" ? "resolved" : ""}`);
+}
+
+function readableError(error) {
+  return error?.message || "The request could not be completed.";
+}
+
+function message(text, error = false) {
+  const target = $(error ? "#error" : "#notice");
+  $("#error").hidden = true;
+  $("#notice").hidden = true;
+  target.textContent = text;
+  target.className = error ? "message error" : "message success";
+  target.hidden = false;
+}
+
+function clearMessages() {
+  $("#error").hidden = true;
+  $("#notice").hidden = true;
+}
+
+function show(screen) {
+  document.querySelectorAll(".screen").forEach((section) => {
+    section.hidden = section.id !== screen;
+  });
+  document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+    if (button.dataset.screen === screen) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+// Runs an action, shows its error as a message, and returns true on success.
+async function attempt(action, success) {
+  clearMessages();
+  try {
+    await action();
+    if (success) message(success);
+    return true;
+  } catch (error) {
+    message(readableError(error), true);
+    return false;
+  }
+}
+
+// Yes/No question in a dialog. Resolves true if the person confirms.
+function confirmDialog({ title, text, yes }) {
+  const dialog = $("#confirm");
+  $("#confirm-title").textContent = title;
+  $("#confirm-text").textContent = text;
+  $("#confirm-yes").textContent = yes;
+
+  return new Promise((resolve) => {
+    const finish = (answer) => {
+      dialog.close();
+      $("#confirm-yes").onclick = null;
+      $("#confirm-no").onclick = null;
+      resolve(answer);
+    };
+    $("#confirm-yes").onclick = () => finish(true);
+    $("#confirm-no").onclick = () => finish(false);
+    dialog.oncancel = () => resolve(false);
+    dialog.showModal();
+  });
+}
+
+/*
+ * SIGN-IN CHECK
+ *
+ * Asks the server who is signed in. Sends signed-out people to login.html and
+ * people with the wrong role to their own page. If the person has no profile
+ * yet (phone, address ...), shows the #profile form and waits until it is saved.
+ * Resolves with { first_name, last_name, role } once the page can be used.
+ */
+async function startSession({ role, otherPage }) {
+  let profile;
+  try {
+    profile = await getProfile();
+  } catch (error) {
+    if (error.status === 403) window.location.replace("login.html");
+    throw error;
+  }
+
+  if (profile.role !== role) {
+    window.location.replace(otherPage[profile.role] ?? "index.html");
+    throw new Error("Wrong role for this page");
+  }
+
+  $("#account-name").textContent = `${profile.first_name} ${profile.last_name}`;
+  $("#account").hidden = false;
+  $("#logout").addEventListener("click", async () => {
+    try { await logout(); } catch { /* leave anyway */ }
+    window.location.replace("login.html");
+  });
+
+  if (!profile.has_profile) await completeProfile(role);
+  return profile;
+}
+
+function completeProfile(role) {
+  document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
+  document.querySelectorAll(".navigation [data-screen]").forEach((b) => { b.hidden = true; });
+  $("#profile").hidden = false;
+
+  return new Promise((resolve) => {
+    $("#profile-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.currentTarget));
+      for (const key of Object.keys(data)) data[key] = data[key].trim();
+      const ok = await attempt(() => createProfile(data));
+      if (ok) {
+        $("#profile").hidden = true;
+        document.querySelectorAll(".navigation [data-screen]").forEach((b) => { b.hidden = false; });
+        resolve();
+      }
+    });
+  });
+}
+
+
+const types = ["Fallen Tree", "Flood", "Fire", "Power"];
+// The order a report moves through, shown as progress steps.
+const steps = ["Pending Assistance", "Help Requested", "Unit in Response", "Resolved"];
+
+types.forEach((type) => $("#report-type").add(new Option(type, type)));
+
+
+// ------------------------------------------------------------------ My reports
+async function loadReports() {
+  const list = $("#reports-list");
+  list.replaceChildren();
+  $("#reports-count").textContent = "Loading…";
+
+  try {
+    const reports = await getMyReports();
+    $("#reports-count").textContent = reports.length
+      ? `${reports.length} ${reports.length === 1 ? "report" : "reports"}`
+      : "You haven’t filed any reports yet.";
+    reports.forEach((report) => list.append(reportCard(report)));
+  } catch (error) {
+    $("#reports-count").textContent = "";
+    message(readableError(error), true);
+  }
+}
+
+function reportCard(report) {
+  const item = make("li");
+
+  const head = make("div", null, "card-head");
+  head.append(
+    make("h3", `${report.type} · ${report.address}, ${report.city}`),
+    chip(report.status),
+  );
+
+  const reached = steps.indexOf(report.status);
+  const progress = make("ol", null, "steps");
+  progress.setAttribute("aria-label", "Progress");
+  steps.forEach((step, index) => {
+    progress.append(make("li", step, index <= reached ? "done" : ""));
+  });
+
+  const meta = [`Filed ${date(report.report_timestamp)}`];
+  if (report.unit_name) meta.push(`Unit: ${report.unit_name}`);
+  if (report.coordinator_name) meta.push(`Coordinator: ${report.coordinator_name}`);
+
+  const actions = make("div", null, "card-actions");
+  const remove = make("button", "Delete report", "delete-button");
+  remove.type = "button";
+  remove.addEventListener("click", () => removeReport(report));
+  actions.append(remove);
+
+  item.append(
+    head,
+    make("p", meta.join(" · "), "card-meta"),
+    make("p", report.description, "card-body"),
+    progress,
+    actions,
+  );
+  return item;
+}
+
+async function removeReport(report) {
+  const yes = await confirmDialog({
+    title: "Delete this report?",
+    text: `${report.type} at ${report.address}, ${report.city}. Any help request linked to it is deleted too. This cannot be undone.`,
+    yes: "Delete report",
+  });
+  if (!yes) return;
+
+  const ok = await attempt(() => deleteMyReport(report.report_id), "Report deleted.");
+  if (ok) loadReports();
+}
+
+$("#reports-refresh").addEventListener("click", () => { clearMessages(); loadReports(); });
+
+// ------------------------------------------------------------ Report an incident
+$("#use-location").addEventListener("click", () => {
+  if (!navigator.geolocation) {
+    message("This browser can’t share your location. Type the coordinates instead.", true);
+    return;
+  }
+  navigator.geolocation.getCurrentPosition(
+    (position) => {
+      const form = $("#report-form");
+      form.latitude.value = position.coords.latitude.toFixed(6);
+      form.longitude.value = position.coords.longitude.toFixed(6);
+      message("Location filled in. Please check the address too.");
+    },
+    () => message("Couldn’t get your location. Type the coordinates instead.", true),
+  );
+});
+
+$("#report-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector("[type=submit]");
+  submit.disabled = true;
+
+  const ok = await attempt(async () => {
+    const data = Object.fromEntries(new FormData(form));
+    for (const key of ["address", "city", "state", "description"]) {
+      data[key] = data[key].trim();
+      if (!data[key]) throw Error(`${key[0].toUpperCase() + key.slice(1)} cannot be blank.`);
+    }
+    data.image_url = data.image_url.trim() || null;
+    if (data.image_url && !/^https?:\/\//i.test(data.image_url)) {
+      throw Error("Photo link must start with http:// or https://.");
+    }
+    await createMyReport({
+      ...data,
+      latitude: Number(data.latitude),
+      longitude: Number(data.longitude),
+    });
+  }, "Report sent. You can follow it under My reports.");
+
+  submit.disabled = false;
+  if (ok) {
+    form.reset();
+    show("reports");
+    loadReports();
+  }
+});
+
+// -------------------------------------------------------------- Community board
+async function loadPosts() {
+  const list = $("#post-list");
+  list.replaceChildren();
+  $("#board-count").textContent = "Loading…";
+
+  try {
+    const posts = await getPosts();
+    $("#board-count").textContent = posts.length
+      ? `${posts.length} ${posts.length === 1 ? "post" : "posts"}`
+      : "No posts yet. Be the first to write one.";
+    posts.forEach((post) => list.append(postCard(post)));
+  } catch (error) {
+    $("#board-count").textContent = "";
+    message(readableError(error), true);
+  }
+}
+
+function postCard(post) {
+  const item = make("li");
+  const head = make("div", null, "card-head");
+  head.append(
+    make("h3", post.post_title),
+    make("span", `${post.first_name} ${post.last_name} · ${date(post.post_timestamp)}`, "card-meta"),
+  );
+  item.append(head, make("p", post.post_content, "card-body"));
+
+  if (post.is_mine) {
+    const actions = make("div", null, "card-actions");
+    const remove = make("button", "Delete my post", "delete-button");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      const yes = await confirmDialog({
+        title: "Delete this post?",
+        text: `“${post.post_title}” will be removed from the board.`,
+        yes: "Delete post",
+      });
+      if (!yes) return;
+      if (await attempt(() => deletePost(post.post_id), "Post deleted.")) loadPosts();
+    });
+    actions.append(remove);
+    item.append(actions);
+  }
+  return item;
+}
+
+$("#post-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const ok = await attempt(async () => {
+    const data = Object.fromEntries(new FormData(form));
+    await createPost({
+      post_title: data.post_title.trim(),
+      post_content: data.post_content.trim(),
+    });
+  }, "Posted.");
+  if (ok) { form.reset(); loadPosts(); }
+});
+
+$("#board-refresh").addEventListener("click", () => { clearMessages(); loadPosts(); });
+
+// --------------------------------------------------------------------- Start up
+document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+  button.addEventListener("click", () => {
+    clearMessages();
+    show(button.dataset.screen);
+  });
+});
+
+function refreshAll() {
+  loadReports();
+  loadPosts();
+}
+
+async function start() {
+  show("reports");
+  try {
+    await startSession({
+      role: "Community Member",
+      otherPage: { "Response Coordinator": "response-coordinator.html" },
+    });
+    show("reports");
+    refreshAll();
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+start();
+
+  </script>
 </body>
 </html>
