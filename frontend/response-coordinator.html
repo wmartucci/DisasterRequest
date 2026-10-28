@@ -6,8 +6,78 @@
   <meta name="color-scheme" content="dark" />
   <title>Response Coordinator | Incident Desk</title>
   <link rel="stylesheet" href="style.css" />
-  <link rel="stylesheet" href="portal/portal.css" />
-  <script type="module" src="portal/coordinator.js"></script>
+  <style>
+/* Extra styles for the Community Member and Response Coordinator screens.
+   Loaded after ../style.css, so it reuses the same colours and buttons. */
+
+.actor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  color: var(--muted);
+  font-size: 14px;
+}
+.actor-bar label { margin: 0; white-space: nowrap; }
+.actor-bar select { padding: 6px 10px; max-width: 240px; }
+.actor-note {
+  margin: 0 0 18px;
+  color: var(--muted);
+  font-size: 14px;
+}
+
+.card-list { display: grid; gap: 14px; margin: 18px 0; padding: 0; list-style: none; }
+.card-list > li {
+  padding: 18px 20px;
+  border: 1px solid var(--border);
+  border-radius: 12px;
+  background: var(--surface);
+}
+.card-head { display: flex; flex-wrap: wrap; justify-content: space-between; gap: 8px; }
+.card-head h3 { margin: 0; }
+.card-meta { color: var(--muted); font-size: 13px; }
+.card-body { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
+.card-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+
+/* Progress steps on "My reports" */
+.steps { display: flex; gap: 6px; margin: 14px 0 4px; padding: 0; list-style: none; }
+.steps li {
+  flex: 1;
+  padding-top: 6px;
+  border-top: 4px solid var(--border);
+  color: var(--muted);
+  font-size: 12px;
+}
+.steps li.done { border-top-color: var(--teal); color: var(--text); }
+
+.count-bars { display: grid; gap: 10px; margin: 14px 0 0; padding: 0; list-style: none; }
+.count-bars li { display: grid; grid-template-columns: 150px 1fr 36px; gap: 12px; align-items: center; font-size: 14px; }
+.count-bars .bar { height: 12px; border-radius: 6px; background: var(--border); overflow: hidden; }
+.count-bars .bar span { display: block; height: 100%; background: var(--teal); }
+.dash-grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(300px, 1fr)); gap: 18px; margin-top: 18px; }
+
+.inline-form { display: flex; flex-wrap: wrap; gap: 10px; align-items: end; }
+.inline-form label { margin: 0; }
+.check { display: flex; align-items: center; gap: 8px; }
+.check input { width: auto; }
+.status-chip.help-pending { background: transparent; }
+.tab-note { margin: 0 0 10px; }
+
+/* Log out button inside the nav bar (the nav styles buttons as plain text) */
+.navigation .actor-bar .secondary-button {
+  padding: 8px 14px;
+  border: 1px solid #37505a;
+  background: #192c33;
+  color: var(--text);
+}
+.navigation .actor-bar .secondary-button:hover { background: #253d45; }
+.actor-bar strong, #account-name { color: var(--text); }
+
+/* Finish-profile form */
+#profile { max-width: 520px; }
+#profile-form label { margin-bottom: 16px; }
+
+  </style>
 </head>
 
 <body>
@@ -204,5 +274,570 @@
     <p>Disaster Request and Resource Management System</p>
     <p>Response coordinator view</p>
   </footer>
+  <script type="module">
+// API calls for the Community Member and Response Coordinator pages.
+// Reports are listed / updated / deleted with the functions in ../api.js;
+// this file holds the calls that are new. The server knows who is asking from
+// the login cookie, so none of these send a member or coordinator id.
+
+const API_BASE_URL = "http://localhost:8000";
+
+async function request(path, { method = "GET", body } = {}) {
+  const response = await fetch(`${API_BASE_URL}${path}`, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    credentials: "include",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    // Signed out or session expired: go to the login page.
+    if (response.status === 401) window.location.replace("login.html");
+
+    let detail = `Request failed (${response.status})`;
+    try {
+      const data = await response.json();
+      if (typeof data.detail === "string") detail = data.detail;
+      else if (Array.isArray(data.detail)) {
+        detail = data.detail.map((d) => d.msg).join(". ");
+      }
+    } catch {
+      // keep the status-based message
+    }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+// ---- both roles
+const getProfile = () => request("/api/portal/profile");
+const createProfile = (profile) =>
+  request("/api/portal/profile", { method: "POST", body: profile });
+
+// ---- community member
+const getMyReports = () => request("/api/my-reports");
+const createMyReport = (report) =>
+  request("/api/my-reports", { method: "POST", body: report });
+const deleteMyReport = (id) => request(`/api/my-reports/${id}`, { method: "DELETE" });
+const getPosts = () => request("/api/posts");
+const createPost = (post) => request("/api/posts", { method: "POST", body: post });
+const deletePost = (id) => request(`/api/posts/${id}`, { method: "DELETE" });
+
+// ---- response coordinator
+const getSummary = () => request("/api/dashboard/summary");
+const getUnits = (reportId) =>
+  request(`/api/response-units?report_id=${encodeURIComponent(reportId)}`);
+const getHelpRequests = () => request("/api/help-requests");
+const createHelpRequest = (body) =>
+  request("/api/help-requests", { method: "POST", body });
+const updateHelpRequest = (id, newStatus) =>
+  request(`/api/help-requests/${id}`, { method: "PATCH", body: { new_status: newStatus } });
+const deleteHelpRequest = (id) =>
+  request(`/api/help-requests/${id}`, { method: "DELETE" });
+
+// ---- reports (same server endpoints that api.js uses)
+const getIncidentReports = () => request("/api/incident-reports");
+const updateIncidentReportStatus = (id, newStatus) =>
+  request(`/api/incident-reports/${encodeURIComponent(id)}`, {
+    method: "PATCH",
+    body: { new_status: newStatus },
+  });
+const deleteIncidentReport = (id) =>
+  request(`/api/incident-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
+const logout = () => request("/api/logout", { method: "POST" });
+
+// Small helpers shared by member.js and coordinator.js.
+
+
+const $ = (selector) => document.querySelector(selector);
+
+function make(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text != null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+
+function date(value) {
+  const parsed = new Date(value);
+  return value && !Number.isNaN(parsed.getTime())
+    ? parsed.toLocaleString()
+    : "Not available";
+}
+
+function chip(status) {
+  return make("span", status, `status-chip ${status === "Resolved" || status === "Completed" ? "resolved" : ""}`);
+}
+
+function readableError(error) {
+  return error?.message || "The request could not be completed.";
+}
+
+function message(text, error = false) {
+  const target = $(error ? "#error" : "#notice");
+  $("#error").hidden = true;
+  $("#notice").hidden = true;
+  target.textContent = text;
+  target.className = error ? "message error" : "message success";
+  target.hidden = false;
+}
+
+function clearMessages() {
+  $("#error").hidden = true;
+  $("#notice").hidden = true;
+}
+
+function show(screen) {
+  document.querySelectorAll(".screen").forEach((section) => {
+    section.hidden = section.id !== screen;
+  });
+  document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+    if (button.dataset.screen === screen) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+// Runs an action, shows its error as a message, and returns true on success.
+async function attempt(action, success) {
+  clearMessages();
+  try {
+    await action();
+    if (success) message(success);
+    return true;
+  } catch (error) {
+    message(readableError(error), true);
+    return false;
+  }
+}
+
+// Yes/No question in a dialog. Resolves true if the person confirms.
+function confirmDialog({ title, text, yes }) {
+  const dialog = $("#confirm");
+  $("#confirm-title").textContent = title;
+  $("#confirm-text").textContent = text;
+  $("#confirm-yes").textContent = yes;
+
+  return new Promise((resolve) => {
+    const finish = (answer) => {
+      dialog.close();
+      $("#confirm-yes").onclick = null;
+      $("#confirm-no").onclick = null;
+      resolve(answer);
+    };
+    $("#confirm-yes").onclick = () => finish(true);
+    $("#confirm-no").onclick = () => finish(false);
+    dialog.oncancel = () => resolve(false);
+    dialog.showModal();
+  });
+}
+
+/*
+ * SIGN-IN CHECK
+ *
+ * Asks the server who is signed in. Sends signed-out people to login.html and
+ * people with the wrong role to their own page. If the person has no profile
+ * yet (phone, address ...), shows the #profile form and waits until it is saved.
+ * Resolves with { first_name, last_name, role } once the page can be used.
+ */
+async function startSession({ role, otherPage }) {
+  let profile;
+  try {
+    profile = await getProfile();
+  } catch (error) {
+    if (error.status === 403) window.location.replace("login.html");
+    throw error;
+  }
+
+  if (profile.role !== role) {
+    window.location.replace(otherPage[profile.role] ?? "index.html");
+    throw new Error("Wrong role for this page");
+  }
+
+  $("#account-name").textContent = `${profile.first_name} ${profile.last_name}`;
+  $("#account").hidden = false;
+  $("#logout").addEventListener("click", async () => {
+    try { await logout(); } catch { /* leave anyway */ }
+    window.location.replace("login.html");
+  });
+
+  if (!profile.has_profile) await completeProfile(role);
+  return profile;
+}
+
+function completeProfile(role) {
+  document.querySelectorAll(".screen").forEach((s) => { s.hidden = true; });
+  document.querySelectorAll(".navigation [data-screen]").forEach((b) => { b.hidden = true; });
+  $("#profile").hidden = false;
+
+  return new Promise((resolve) => {
+    $("#profile-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      const data = Object.fromEntries(new FormData(event.currentTarget));
+      for (const key of Object.keys(data)) data[key] = data[key].trim();
+      const ok = await attempt(() => createProfile(data));
+      if (ok) {
+        $("#profile").hidden = true;
+        document.querySelectorAll(".navigation [data-screen]").forEach((b) => { b.hidden = false; });
+        resolve();
+      }
+    });
+  });
+}
+
+
+const statuses = ["Pending Assistance", "Help Requested", "Unit in Response", "Resolved"];
+const requestStatuses = ["Pending", "In Progress", "Completed"];
+
+statuses.forEach((s) => $("#manage-status").add(new Option(s, s)));
+
+let reports = [];
+
+function emptyRow(body, columns, text) {
+  const row = make("tr");
+  const cell = make("td", text, "empty");
+  cell.colSpan = columns;
+  row.append(cell);
+  body.append(row);
+}
+
+function twoLine(top, bottom) {
+  const cell = make("td");
+  cell.append(make("span", top), make("small", bottom));
+  return cell;
+}
+
+function select(values, current) {
+  const element = make("select");
+  values.forEach((v) => element.add(new Option(v, v)));
+  element.value = current;
+  return element;
+}
+
+// ------------------------------------------------------------------- Dashboard
+function bars(listSelector, rows, key, order) {
+  const list = $(listSelector);
+  list.replaceChildren();
+  const totals = Object.fromEntries(order.map((name) => [name, 0]));
+  rows.forEach((row) => { totals[row[key]] = Number(row.total); });
+  const max = Math.max(1, ...Object.values(totals));
+
+  Object.entries(totals).forEach(([name, total]) => {
+    const item = make("li");
+    const bar = make("span", null, "bar");
+    const fill = make("span");
+    fill.style.width = `${(total / max) * 100}%`;
+    bar.append(fill);
+    item.append(make("span", name), bar, make("strong", total));
+    list.append(item);
+  });
+}
+
+function statCard(label, value) {
+  const card = make("div", null, "stat-card");
+  card.append(make("span", label), make("strong", value));
+  return card;
+}
+
+function assignButton(report) {
+  const button = make("button", "Assign unit", "primary-button");
+  button.type = "button";
+  button.addEventListener("click", () => openAssign(report));
+  return button;
+}
+
+async function loadDashboard() {
+  try {
+    const summary = await getSummary();
+    const count = (rows, name) =>
+      Number(rows.find((r) => r.status === name)?.total ?? 0);
+    const total = summary.by_status.reduce((sum, r) => sum + Number(r.total), 0);
+
+    $("#stat-cards").replaceChildren(
+      statCard("All reports", total),
+      statCard("Awaiting assistance", count(summary.by_status, "Pending Assistance")),
+      statCard("Units in response", count(summary.by_status, "Unit in Response")),
+      statCard("Resolved", count(summary.by_status, "Resolved")),
+    );
+
+    bars("#by-status", summary.by_status, "status", statuses);
+    bars("#by-type", summary.by_type, "type", ["Fallen Tree", "Flood", "Fire", "Power"]);
+    bars("#by-help", summary.help_requests_by_status, "status", requestStatuses);
+
+    const body = $("#needs-action");
+    body.replaceChildren();
+    if (!summary.needs_action.length) emptyRow(body, 5, "Nothing waiting. Every open report has a help request.");
+    summary.needs_action.forEach((report) => {
+      const row = make("tr");
+      const status = make("td");
+      status.append(chip(report.status));
+      const action = make("td");
+      action.append(assignButton(report));
+      row.append(
+        twoLine(`#${report.report_id} · ${report.type}`, date(report.report_timestamp)),
+        make("td", report.reporter_name),
+        twoLine(report.address, report.city),
+        status,
+        action,
+      );
+      body.append(row);
+    });
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+// -------------------------------------------------------------- Help requests
+async function loadHelp() {
+  try {
+    const [allReports, requests] = await Promise.all([
+      getIncidentReports(), getHelpRequests(),
+    ]);
+    reports = allReports;
+
+    const withRequest = new Set(requests.map((r) => Number(r.report_id)));
+    const waiting = reports.filter(
+      (r) => !withRequest.has(Number(r.report_id)) && r.status !== "Resolved",
+    );
+
+    const waitingBody = $("#waiting");
+    waitingBody.replaceChildren();
+    if (!waiting.length) emptyRow(waitingBody, 4, "No reports are waiting for a unit.");
+    waiting.forEach((report) => {
+      const row = make("tr");
+      const action = make("td");
+      action.append(assignButton(report));
+      row.append(
+        twoLine(`#${report.report_id} · ${report.type}`, date(report.report_timestamp)),
+        make("td", `${report.first_name} ${report.last_name}`),
+        twoLine(report.address, report.city),
+        action,
+      );
+      waitingBody.append(row);
+    });
+
+    const body = $("#requests");
+    body.replaceChildren();
+    if (!requests.length) emptyRow(body, 5, "No help requests yet.");
+    requests.forEach((request) => {
+      const row = make("tr");
+
+      const unit = request.unit_name
+        ? twoLine(request.unit_name, `${request.unit_type} · ${request.organization}`)
+        : twoLine("No unit", "The unit was removed");
+
+      const picker = select(requestStatuses, request.status);
+      picker.setAttribute("aria-label", `Status of help request for report ${request.report_id}`);
+      const statusCell = make("td");
+      statusCell.append(picker);
+      if (request.called_911) statusCell.append(make("small", "911 called"));
+
+      const save = make("button", "Save", "secondary-button");
+      save.type = "button";
+      save.addEventListener("click", async () => {
+        const ok = await attempt(
+          () => updateHelpRequest(request.request_id, picker.value),
+          `Request for report #${request.report_id} is now ${picker.value}.`,
+        );
+        if (ok) loadHelp();
+      });
+
+      const remove = make("button", "Remove", "delete-button");
+      remove.type = "button";
+      remove.addEventListener("click", async () => {
+        const yes = await confirmDialog({
+          title: "Remove this help request?",
+          text: `The unit is released and report #${request.report_id} goes back to Pending Assistance.`,
+          yes: "Remove request",
+        });
+        if (!yes) return;
+        if (await attempt(() => deleteHelpRequest(request.request_id), "Help request removed.")) loadHelp();
+      });
+
+      const actions = make("td");
+      actions.append(save, remove);
+
+      row.append(
+        twoLine(`#${request.report_id} · ${request.type}`, `${request.address}, ${request.city}`),
+        unit,
+        twoLine(date(request.request_timestamp), request.reporter_name),
+        statusCell,
+        actions,
+      );
+      body.append(row);
+    });
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+// ------------------------------------------------------------ Assign a unit
+let assigning = null;
+
+async function openAssign(report) {
+  clearMessages();
+  assigning = report;
+  $("#assign-title").textContent = `Report #${report.report_id} · ${report.type}`;
+  $("#assign-note").textContent = `${report.address}, ${report.city}`;
+  $("#assign-unit").replaceChildren(new Option("Loading units…", ""));
+  $("#assign-form").called_911.checked = false;
+  $("#assign").showModal();
+
+  try {
+    const units = await getUnits(report.report_id);
+    $("#assign-unit").replaceChildren();
+    if (!units.length) $("#assign-unit").add(new Option("No units available", ""));
+    units.forEach((unit) => {
+      $("#assign-unit").add(new Option(
+        `${unit.unit_name} · ${unit.unit_type} · ${unit.distance_km} km away`,
+        unit.unit_id,
+      ));
+    });
+  } catch (error) {
+    $("#assign").close();
+    message(readableError(error), true);
+  }
+}
+
+$("#assign-cancel").addEventListener("click", () => $("#assign").close());
+
+$("#assign-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const unitId = Number(form.unit_id.value);
+  if (!unitId || !assigning) return;
+
+  const report = assigning;
+  const ok = await attempt(
+    () => createHelpRequest(
+      { report_id: report.report_id, unit_id: unitId, called_911: form.called_911.checked },
+    ),
+    `Help requested for report #${report.report_id}.`,
+  );
+  $("#assign").close();
+  if (ok) refreshCurrent();
+});
+
+// ------------------------------------------------------------- Manage reports
+function coordinatorName(report) {
+  return report.coordinator_name || "Unassigned";
+}
+
+async function loadManage() {
+  try {
+    reports = await getIncidentReports();
+    renderManage();
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+function renderManage() {
+  const query = $("#manage-query").value.trim().toLowerCase();
+  const wanted = $("#manage-status").value;
+
+  const shown = reports.filter((r) =>
+    (!wanted || r.status === wanted) &&
+    [r.first_name, r.last_name, r.address, r.city, r.description, r.type]
+      .join(" ").toLowerCase().includes(query),
+  );
+
+  $("#manage-count").textContent = `${shown.length} of ${reports.length} reports`;
+  const body = $("#manage-rows");
+  body.replaceChildren();
+  if (!shown.length) emptyRow(body, 6, "No reports match your filters.");
+
+  shown.forEach((report) => {
+    const row = make("tr");
+    const picker = select(statuses, report.status);
+    picker.setAttribute("aria-label", `Status of report ${report.report_id}`);
+    const statusCell = make("td");
+    statusCell.append(picker);
+
+    const save = make("button", "Save status", "secondary-button");
+    save.type = "button";
+    save.addEventListener("click", async () => {
+      const ok = await attempt(
+        () => updateIncidentReportStatus(report.report_id, picker.value),
+        `Report #${report.report_id} is now “${picker.value}”.`,
+      );
+      if (ok) loadManage();
+    });
+
+    const remove = make("button", "Delete", "delete-button");
+    remove.type = "button";
+    remove.addEventListener("click", async () => {
+      const yes = await confirmDialog({
+        title: "Delete incident report?",
+        text: `${report.type} at ${report.address}, ${report.city}, filed by ${report.first_name} ${report.last_name}. Its help request is deleted too. This cannot be undone.`,
+        yes: "Delete report",
+      });
+      if (!yes) return;
+      if (await attempt(() => deleteIncidentReport(report.report_id), "Report deleted.")) loadManage();
+    });
+
+    const actions = make("td");
+    actions.append(save, remove);
+
+    row.append(
+      twoLine(`#${report.report_id} · ${report.type}`, date(report.report_timestamp)),
+      twoLine(`${report.first_name} ${report.last_name}`, report.tel_no ?? ""),
+      twoLine(report.address, report.city),
+      make("td", coordinatorName(report)),
+      statusCell,
+      actions,
+    );
+    body.append(row);
+  });
+}
+
+$("#manage-filters").addEventListener("input", renderManage);
+$("#manage-filters").addEventListener("submit", (e) => e.preventDefault());
+$("#manage-filters").addEventListener("reset", () => setTimeout(renderManage, 0));
+
+// --------------------------------------------------------------------- Start up
+let currentScreen = "dashboard";
+
+function refreshCurrent() {
+  if (currentScreen === "dashboard") loadDashboard();
+  else if (currentScreen === "help") loadHelp();
+  else loadManage();
+}
+
+function go(screen) {
+  currentScreen = screen;
+  clearMessages();
+  show(screen);
+  refreshCurrent();
+}
+
+document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+  button.addEventListener("click", () => go(button.dataset.screen));
+});
+["dashboard", "help", "manage"].forEach((name) => {
+  $(`#${name}-refresh`).addEventListener("click", () => go(name));
+});
+
+async function start() {
+  show("dashboard");
+  try {
+    await startSession({
+      role: "Response Coordinator",
+      otherPage: { "Community Member": "community-member.html" },
+    });
+    show("dashboard");
+    refreshCurrent();
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+start();
+
+  </script>
 </body>
 </html>
