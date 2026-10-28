@@ -208,8 +208,12 @@ def get_incidents(type: str = None, status: str = None, district_id: int = None,
 
 # Get count of incident report by type and total incident count
 @app.get("/api/incidents/stats")
-def get_incident_stats():
-    return db.get_incident_stats()
+def get_incident_stats(district_id: int = None):
+    return db.get_incident_stats(district_id)
+
+@app.get("/api/districts")
+def get_districts():
+    return db.get_districts()
 
 # Get all incident reports inside a district
 # Get incident report type counts by district

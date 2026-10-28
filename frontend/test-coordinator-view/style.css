@@ -1,6 +1,6 @@
 .main-layout-grid {
     display: grid;
-    grid-template-columns: 1fr 1fr;
+    grid-template-columns: 50% 50%;
     grid-template-rows: repeat(8, 1fr);
     gap: 10px;
     height: 100%;
@@ -59,9 +59,14 @@
     font-size: 15px;
 }
 
-#map {
+#district-toggle {
     grid-column: 1;
-    grid-row: 2/9;
+    grid-row: 2;
+}
+
+#map-panel {
+    grid-column: 1;
+    grid-row: 3/9;
     --calcite-panel-header-background-color: #004B72;
     --calcite-panel-heading-text-color: white;
     --calcite-panel-border-color: #506070;
@@ -69,7 +74,10 @@
 
 #table {
     grid-column: 2;
-    grid-row: 1/6;
+    grid-row: 1/4;
+    min-height: 0;
+    height: 100%;
+    overflow: hidden;
 }
 
 #nav {

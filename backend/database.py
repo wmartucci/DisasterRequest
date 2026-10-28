@@ -272,7 +272,7 @@ def get_incidents(type, status, district_id, as_geojson):
             final_query = select_query + " WHERE " + where_clause
 
     if as_geojson:
-        final_query = "SELECT json_build_object('type', 'FeatureCollection', 'features', json_agg(ST_AsGeoJSON(t.*)::json)) FROM (" + final_query + ") as t;"
+        final_query = "SELECT json_build_object('type', 'FeatureCollection', 'features', COALESCE(json_agg(ST_AsGeoJSON(t.*)::json),'[]'::json)) FROM (" + final_query + ") as t;"
         result = run_query(final_query, params=params)
         if 'json_build_object' in result[0]:
             return result[0]['json_build_object']
@@ -283,5 +283,36 @@ def get_incidents(type, status, district_id, as_geojson):
 
     return run_query(final_query, params=params)
 
-def get_incident_stats():
-    return run_query("SELECT COUNT(*) AS total_incidents, COUNT(*) FILTER (WHERE type = 'Flood') AS flood_count, COUNT(*) FILTER (WHERE type = 'Fallen Tree') AS tree_count, COUNT(*) FILTER (WHERE type = 'Power') AS power_count, COUNT(*) FILTER (WHERE type = 'Fire') AS fire_count FROM incident_reports;")
+def get_incident_stats(district_id: int = None):
+    if district_id is None:
+        return run_query("""SELECT COUNT(*) AS total_incidents, 
+                                   COUNT(*) FILTER (WHERE type = 'Flood') AS flood_count, 
+                                   COUNT(*) FILTER (WHERE type = 'Fallen Tree') AS tree_count, 
+                                   COUNT(*) FILTER (WHERE type = 'Power') AS power_count, 
+                                   COUNT(*) FILTER (WHERE type = 'Fire') AS fire_count 
+                            FROM incident_reports;""")
+    return run_query(f"""SELECT COUNT(*) AS total_incidents, 
+                                COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count, 
+                                COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count, 
+                                COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count, 
+                                COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count 
+                         FROM incident_reports i
+                         JOIN districts d ON ST_Within(i.location, d.boundary)
+                         WHERE d.district_id = {district_id};""")
+
+def get_districts():
+    result = run_query("""SELECT json_build_object(
+                            'type', 'FeatureCollection', 
+                            'features', COALESCE(
+                                json_agg(ST_AsGeoJSON(t.*)::json),
+                                '[]'::json
+                            )
+                        )
+                        FROM (
+                            SELECT * FROM districts
+                        ) AS t
+                        """)
+    if 'json_build_object' in result[0]:
+        return result[0]['json_build_object']
+    else:
+        return result

@@ -29,72 +29,18 @@
                     <p>Floods</p>
                 </div>
             </div>
-            <calcite-panel id="map" heading="Map" scale="s">
-                <arcgis-map basemap="topo-vector" center="-82.54947363304201, 35.580068654542416" zoom=11>
+            <div id="district-toggle">
+                <!-- <calcite-label><strong>Aggregation</strong> -->
+                    <calcite-switch label-text-end="Status" label-text-start="Type"></calcite-switch>
+                <!-- </calcite-label> -->
+            </div>
+            <calcite-panel id="map-panel" heading="Map" scale="s">
+                <arcgis-map id="map" basemap="topo-vector" center="-82.54947363304201, 35.580068654542416" zoom=11>
                 </arcgis-map>
             </calcite-panel>
-            <calcite-table id="table" caption="Simple table">
-                <calcite-table-row slot="table-header">
-                    <calcite-table-header heading="Heading" description="Description"></calcite-table-header>
-                    <calcite-table-header heading="Heading" description="Description"></calcite-table-header>
-                    <calcite-table-header heading="Heading" description="Description"></calcite-table-header>
-                    <calcite-table-header heading="Heading" alignment="end"></calcite-table-header>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-                <calcite-table-row>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell>cell content</calcite-table-cell>
-                    <calcite-table-cell alignment="end">cell content</calcite-table-cell>
-                </calcite-table-row>
-            </calcite-table>
+            <arcgis-feature-table
+                reference-element="#map" id="table"
+            ></arcgis-feature-table>
         </div>
     </calcite-shell>
 </body>
