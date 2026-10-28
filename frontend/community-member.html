@@ -1,1 +1,186 @@
-<!DOCTYPE html>
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="dark" />
+  <title>Community Member | Incident Desk</title>
+  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="portal/portal.css" />
+  <script type="module" src="portal/member.js"></script>
+</head>
+
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <header class="hero">
+    <div class="hero-inner">
+      <div>
+        <p class="eyebrow">COMMUNITY RESPONSE HUB / RESIDENT VIEW</p>
+        <h1>Tell us what happened.<br />We’ll track it with you<span>.</span></h1>
+        <p>Report an incident, follow its progress, and talk with your neighbours.</p>
+      </div>
+    </div>
+  </header>
+
+  <nav class="navigation" aria-label="Community member navigation">
+    <div class="nav-inner">
+      <button data-screen="reports">My reports</button>
+      <button data-screen="report">Report an incident</button>
+      <button data-screen="board">Community board</button>
+
+      <div id="account" class="actor-bar" hidden>
+        <span id="account-name"></span>
+        <button id="logout" type="button" class="secondary-button">Log out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <p id="notice" class="message" role="status" hidden></p>
+    <p id="error" class="message error" role="alert" hidden></p>
+
+    <!-- ============ FINISH PROFILE (first sign-in only) ============ -->
+    <section id="profile" class="panel" aria-labelledby="profile-title" hidden>
+      <p class="eyebrow">ONE LAST STEP</p>
+      <h2 id="profile-title">Finish your profile.</h2>
+      <p class="muted">Add your address and phone number so coordinators can reach you about your reports.</p>
+      <form id="profile-form">
+          <label>
+            Street address
+            <input name="street_address" required maxlength="300" autocomplete="street-address" />
+          </label>
+          <label>
+            City
+            <input name="city" required maxlength="100" autocomplete="address-level2" />
+          </label>
+          <label>
+            State
+            <input name="state" required maxlength="100" autocomplete="address-level1" />
+          </label>
+          <label>
+            Phone number
+            <input name="tel_no" required maxlength="12" inputmode="tel" placeholder="540-555-1234" autocomplete="tel" />
+          </label>
+        <button type="submit" class="primary-button">Save and continue</button>
+      </form>
+    </section>
+
+    <!-- ============ MY REPORTS ============ -->
+    <section id="reports" class="screen" aria-labelledby="reports-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">01 / MY REPORTS</p>
+          <h2 id="reports-title">Reports you’ve filed.</h2>
+          <p class="muted">See where each report stands. You can delete a report you filed.</p>
+        </div>
+        <button id="reports-refresh" class="secondary-button">Refresh</button>
+      </div>
+      <p id="reports-count" class="muted" aria-live="polite"></p>
+      <ul id="reports-list" class="card-list"></ul>
+    </section>
+
+    <!-- ============ REPORT AN INCIDENT ============ -->
+    <section id="report" class="screen" aria-labelledby="report-title" hidden>
+      <p class="eyebrow">02 / REPORT AN INCIDENT</p>
+      <h2 id="report-title">Make it visible.</h2>
+      <p class="muted">Tell us what is happening and where. A coordinator will pick it up.</p>
+
+      <form id="report-form" class="panel">
+        <div class="form-grid">
+          <label>
+            What kind of incident is it?
+            <select name="type" id="report-type" required></select>
+          </label>
+
+          <label>
+            Street address
+            <input name="address" required maxlength="300" autocomplete="street-address" />
+          </label>
+
+          <label>
+            City
+            <input name="city" required maxlength="100" autocomplete="address-level2" />
+          </label>
+
+          <label>
+            State
+            <input name="state" required maxlength="100" autocomplete="address-level1" />
+          </label>
+
+          <label>
+            Latitude
+            <input name="latitude" type="number" step="any" min="-90" max="90" required placeholder="37.2296" />
+          </label>
+
+          <label>
+            Longitude
+            <input name="longitude" type="number" step="any" min="-180" max="180" required placeholder="-80.4139" />
+          </label>
+
+          <label class="full">
+            <span>Photo link (optional)</span>
+            <input name="image_url" type="url" placeholder="https://example.com/photo.jpg" />
+          </label>
+
+          <label class="full">
+            What is happening?
+            <textarea name="description" required maxlength="5000" rows="4"></textarea>
+          </label>
+        </div>
+
+        <div class="card-actions">
+          <button type="button" id="use-location" class="secondary-button">
+            Use my current location
+          </button>
+          <button type="submit" class="primary-button">Send report</button>
+        </div>
+        <p class="muted">Your report starts as “Pending Assistance”. Coordinates use decimal degrees.</p>
+      </form>
+    </section>
+
+    <!-- ============ COMMUNITY BOARD ============ -->
+    <section id="board" class="screen" aria-labelledby="board-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">03 / COMMUNITY BOARD</p>
+          <h2 id="board-title">Neighbours helping neighbours.</h2>
+          <p class="muted">Share updates and offers of help. Everyone can read the board.</p>
+        </div>
+        <button id="board-refresh" class="secondary-button">Refresh</button>
+      </div>
+
+      <form id="post-form" class="panel">
+        <h3>Write a post</h3>
+        <label>
+          Title
+          <input name="post_title" required maxlength="50" />
+        </label>
+        <label>
+          Message
+          <textarea name="post_content" required maxlength="3000" rows="3"></textarea>
+        </label>
+        <button type="submit" class="primary-button">Post</button>
+      </form>
+
+      <p id="board-count" class="muted" aria-live="polite"></p>
+      <ul id="post-list" class="card-list"></ul>
+    </section>
+  </main>
+
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <p class="eyebrow">PLEASE CONFIRM</p>
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <div class="form-actions">
+      <button id="confirm-no" class="secondary-button" autofocus>Cancel</button>
+      <button id="confirm-yes" class="delete-button"></button>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>Disaster Request and Resource Management System</p>
+    <p>Community member view</p>
+  </footer>
+</body>
+</html>
