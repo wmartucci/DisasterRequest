@@ -10,6 +10,7 @@ import os
 
 load_dotenv()
 
+
 app = FastAPI(title="Disaster Request API", version="1.0.0")
 password_hasher = PasswordHash.recommended()
 
@@ -119,7 +120,11 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
 
 # --------- UPDATE endpoints ----------
 @app.patch("/api/incident-reports/{report_id}")
-def update_incident_report_status(report_id: int, update: StatusUpdate) -> dict:
+def update_incident_report_status(
+    report_id: int,
+    update: StatusUpdate,
+    user=Depends(require_roles("Response Coordinator")),
+) -> dict:
     # Required role: Response Coordinator, Responder
     result = db.update_incident_report_status(report_id, update.new_status)
     if result == 0:
@@ -129,7 +134,10 @@ def update_incident_report_status(report_id: int, update: StatusUpdate) -> dict:
 
 # --------- DELETE endpoints ----------
 @app.delete("/api/incident-reports/{report_id}")
-def delete_incident_report(report_id: int) -> dict:
+def delete_incident_report(
+    report_id: int,
+    user=Depends(require_roles("Response Coordinator", "Community Member")),
+) -> dict:
     # Required role: Response Coordinator, Community Member
     # If community member, must match community member ID that created it
     result = db.delete_incident_report(report_id)

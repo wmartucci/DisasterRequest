@@ -185,6 +185,11 @@ footer {
   color: #071b1a;
 }
 
+.navigation .logout-button {
+  margin-left: auto;
+  border: 1px solid var(--border);
+}
+
 main {
   min-height: 50vh;
   padding: 36px 0 48px;

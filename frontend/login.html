@@ -1,0 +1,627 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Disaster Response | Sign in</title>
+
+  <style>
+    :root {
+      color-scheme: light;
+      --bg: #ffffff;
+      --surface: #ffffff;
+      --surface-alt: #f6f8f8;
+      --border: #d5dde0;
+      --text: #0b0f10;
+      --muted: #55646a;
+      --teal: #5eead4;          /* same accent as index.html */
+      --teal-strong: #0f766e;   /* darker teal for text on white (readable contrast) */
+      --error-bg: #fdf0f2;
+      --error-border: #d98a99;
+      --error-text: #8a1c33;
+      --ok-bg: #effbf8;
+      --ok-border: #5bc6b2;
+      --ok-text: #0b5d55;
+    }
+
+    * { box-sizing: border-box; }
+    [hidden] { display: none !important; }
+
+    body {
+      margin: 0;
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      background: var(--bg);
+      color: var(--text);
+      font: 16px/1.6 "Segoe UI", Arial, sans-serif;
+    }
+
+    button, input, select { font: inherit; }
+    button { cursor: pointer; }
+    button:disabled { opacity: 0.5; cursor: not-allowed; }
+
+    button:focus-visible,
+    input:focus-visible,
+    select:focus-visible,
+    a:focus-visible {
+      outline: 3px solid var(--teal-strong);
+      outline-offset: 3px;
+    }
+
+    h1, h2, p { margin-top: 0; }
+
+    .muted { color: var(--muted); }
+
+    .eyebrow {
+      color: var(--teal-strong);
+      font-size: 11px;
+      font-weight: 700;
+      letter-spacing: 2px;
+    }
+
+    .skip-link {
+      position: absolute;
+      top: -100px;
+      left: 16px;
+      padding: 12px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    .skip-link:focus { top: 12px; }
+
+    /* ---------- Layout ---------- */
+    main {
+      flex: 1;
+      width: min(1100px, calc(100% - 64px));
+      margin-inline: auto;
+      display: grid;
+      grid-template-columns: minmax(0, 1fr) minmax(0, 440px);
+      align-items: center;
+      gap: 64px;
+      padding: 64px 0;
+    }
+
+    .welcome h1 {
+      margin-bottom: 18px;
+      font-size: clamp(32px, 4vw, 52px);
+      line-height: 1.12;
+      letter-spacing: -1.5px;
+    }
+    .welcome h1 span { color: var(--teal-strong); }
+
+    .welcome .lead {
+      max-width: 520px;
+      font-size: 1.05rem;
+      line-height: 1.8;
+    }
+
+    .role-list {
+      list-style: none;
+      margin: 28px 0 0;
+      padding: 0;
+      display: grid;
+      gap: 12px;
+    }
+    .role-list li {
+      padding: 14px 18px;
+      border: 1px solid var(--border);
+      border-left: 4px solid var(--teal);
+      border-radius: 10px;
+    }
+    .role-list strong { display: block; }
+    .role-list span { color: var(--muted); font-size: 14px; }
+
+    /* ---------- Panel (matches .panel in style.css) ---------- */
+    .panel {
+      min-width: 0;
+      padding: 28px;
+      background: var(--surface);
+      border: 1px solid var(--border);
+      border-radius: 16px;
+      box-shadow: 0 8px 30px rgb(11 15 16 / 0.06);
+    }
+
+    /* ---------- Tabs (styled like .navigation buttons) ---------- */
+    .tabs {
+      display: flex;
+      gap: 6px;
+      padding: 5px;
+      margin-bottom: 24px;
+      background: var(--surface-alt);
+      border: 1px solid var(--border);
+      border-radius: 11px;
+    }
+    .tabs button {
+      flex: 1;
+      border: 0;
+      border-radius: 8px;
+      background: transparent;
+      color: var(--muted);
+      padding: 10px 14px;
+      font-weight: 600;
+    }
+    .tabs button:hover { color: var(--text); background: #e9eef0; }
+    .tabs button[aria-selected="true"] {
+      background: var(--teal);
+      color: #071b1a;
+    }
+
+    .panel h2 {
+      font-size: 24px;
+      line-height: 1.3;
+      margin-bottom: 6px;
+    }
+
+    /* ---------- Forms (matches index.html inputs) ---------- */
+    form { display: grid; gap: 18px; }
+
+    .form-row {
+      display: grid;
+      grid-template-columns: repeat(2, minmax(0, 1fr));
+      gap: 14px;
+    }
+
+    label {
+      display: block;
+      min-width: 0;
+      font-size: 14px;
+      font-weight: 600;
+    }
+
+    input, select {
+      display: block;
+      width: 100%;
+      min-width: 0;
+      margin-top: 8px;
+      padding: 12px 14px;
+      border: 1px solid #b9c6cb;
+      border-radius: 8px;
+      background: #ffffff;
+      color: var(--text);
+    }
+    input::placeholder { color: #8a979c; }
+    input:focus, select:focus { border-color: var(--teal-strong); }
+
+    .hint {
+      display: block;
+      margin-top: 6px;
+      color: var(--muted);
+      font-size: 12px;
+      font-weight: 400;
+    }
+
+    .form-actions {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 12px;
+      margin-top: 4px;
+    }
+
+    /* ---------- Buttons (same shapes as style.css) ---------- */
+    .primary-button,
+    .secondary-button {
+      display: inline-block;
+      padding: 11px 17px;
+      border-radius: 9px;
+      border: 1px solid transparent;
+    }
+    .primary-button {
+      flex: 1;
+      background: var(--teal);
+      color: #071b1a;
+      font-weight: 700;
+    }
+    .primary-button:hover { background: #8cf3e1; }
+
+    .secondary-button {
+      background: #ffffff;
+      border-color: #b9c6cb;
+      color: var(--text);
+    }
+    .secondary-button:hover { background: var(--surface-alt); }
+
+    .switch {
+      margin: 20px 0 0;
+      font-size: 14px;
+      color: var(--muted);
+      text-align: center;
+    }
+    .link-button {
+      padding: 0;
+      border: 0;
+      background: none;
+      color: var(--teal-strong);
+      font-weight: 600;
+      text-decoration: underline;
+    }
+
+    /* ---------- Messages (matches .message in style.css) ---------- */
+    .message {
+      margin: 0 0 20px;
+      padding: 12px 16px;
+      border: 1px solid var(--ok-border);
+      border-radius: 9px;
+      background: var(--ok-bg);
+      color: var(--ok-text);
+      font-size: 14px;
+      overflow-wrap: anywhere;
+    }
+    .message.error {
+      border-color: var(--error-border);
+      background: var(--error-bg);
+      color: var(--error-text);
+    }
+
+    /* ---------- Dialog ---------- */
+    dialog {
+      width: min(480px, calc(100% - 32px));
+      padding: 28px;
+      border: 1px solid var(--border);
+      border-radius: 18px;
+      background: var(--surface);
+      color: var(--text);
+    }
+    dialog::backdrop {
+      background: rgb(11 15 16 / 0.45);
+      backdrop-filter: blur(3px);
+    }
+    dialog h2 { font-size: 22px; margin-bottom: 10px; }
+    dialog .form-actions { justify-content: flex-end; margin-top: 20px; }
+    dialog .form-actions .primary-button { flex: 0 0 auto; }
+
+    footer {
+      width: min(1100px, calc(100% - 64px));
+      margin-inline: auto;
+      padding: 24px 0 32px;
+      border-top: 1px solid var(--border);
+      color: var(--muted);
+      font-size: 13px;
+    }
+    footer p { margin-bottom: 4px; }
+
+    /* ---------- Responsive ---------- */
+    @media (max-width: 900px) {
+      main {
+        grid-template-columns: 1fr;
+        gap: 36px;
+        padding: 40px 0;
+      }
+      .role-list { display: none; }
+    }
+
+    @media (max-width: 650px) {
+      main, footer { width: calc(100% - 32px); }
+      .panel { padding: 22px; }
+      .form-row { grid-template-columns: 1fr; }
+      .welcome h1 { font-size: 34px; }
+    }
+  </style>
+</head>
+
+<body>
+  <a href="#auth-panel" class="skip-link">Skip to sign in</a>
+
+  <main>
+    <!-- ---------- Welcome message ---------- -->
+    <section class="welcome" aria-labelledby="welcome-title">
+      <p class="eyebrow">COMMUNITY RESPONSE HUB / WELCOME</p>
+      <h1 id="welcome-title">Welcome back.<br />Let’s get your community moving<span>.</span></h1>
+      <p class="lead muted">
+        Report an incident, follow what’s happening near you, and coordinate
+        the response. Log in to continue, or create an account to get started.
+      </p>
+
+      <ul class="role-list" aria-label="Who uses this app">
+        <li>
+          <strong>Community members</strong>
+          <span>Report incidents and request help.</span>
+        </li>
+        <li>
+          <strong>Response coordinators</strong>
+          <span>Review reports and dispatch responders.</span>
+        </li>
+        <li>
+          <strong>Volunteers</strong>
+          <span>Offer resources where they’re needed.</span>
+        </li>
+      </ul>
+    </section>
+
+    <!-- ---------- Auth panel ---------- -->
+    <section id="auth-panel" class="panel" tabindex="-1" aria-label="Log in or sign up">
+      <div class="tabs" role="tablist" aria-label="Account options">
+        <button type="button" role="tab" id="tab-login"
+                aria-selected="true" aria-controls="login-view">Log in</button>
+        <button type="button" role="tab" id="tab-signup"
+                aria-selected="false" aria-controls="signup-view" tabindex="-1">Sign up</button>
+      </div>
+
+      <p id="notice" class="message" role="status" hidden></p>
+      <p id="error" class="message error" role="alert" hidden></p>
+
+      <!-- Log in -->
+      <div id="login-view" role="tabpanel" aria-labelledby="tab-login">
+        <p class="eyebrow">01 / LOG IN</p>
+        <h2>Log in to your account</h2>
+        <p class="muted">Enter your username and password.</p>
+
+        <form id="login-form" novalidate>
+          <label>
+            Username
+            <input name="user_name" type="text" required
+                   autocomplete="username" autocapitalize="none" spellcheck="false" />
+          </label>
+
+          <label>
+            Password
+            <input name="password" type="password" required
+                   autocomplete="current-password" />
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Log in</button>
+            <button type="button" id="forgot-password" class="secondary-button">
+              Forgot password
+            </button>
+          </div>
+        </form>
+
+        <p class="switch">
+          New here?
+          <button type="button" class="link-button" data-go="signup">Create an account</button>
+        </p>
+      </div>
+
+      <!-- Sign up -->
+      <div id="signup-view" role="tabpanel" aria-labelledby="tab-signup" hidden>
+        <p class="eyebrow">02 / SIGN UP</p>
+        <h2>Create an account</h2>
+        <p class="muted">Tell us who you are and how you’ll use the app.</p>
+
+        <form id="signup-form" novalidate>
+          <div class="form-row">
+            <label>
+              First name
+              <input name="first_name" required maxlength="100" autocomplete="given-name" />
+            </label>
+            <label>
+              Last name
+              <input name="last_name" required maxlength="100" autocomplete="family-name" />
+            </label>
+          </div>
+
+          <label>
+            I am a…
+            <select name="role" required>
+              <option value="">Select your role</option>
+              <option value="Community Member">Community member</option>
+              <option value="Volunteer">Volunteer</option>
+              <option value="Responder">Responder</option>
+              <option value="Response Coordinator">Response coordinator</option>
+            </select>
+          </label>
+
+          <label>
+            Username
+            <input name="user_name" required maxlength="50"
+                   autocomplete="username" autocapitalize="none" spellcheck="false" />
+          </label>
+
+          <label>
+            Password
+            <input name="password" type="password" required minlength="8"
+                   autocomplete="new-password" aria-describedby="pw-hint" />
+            <span id="pw-hint" class="hint">At least 8 characters.</span>
+          </label>
+
+          <label>
+            Confirm password
+            <input name="confirm_password" type="password" required minlength="8"
+                   autocomplete="new-password" />
+          </label>
+
+          <div class="form-actions">
+            <button type="submit" class="primary-button">Create account</button>
+          </div>
+        </form>
+
+        <p class="switch">
+          Already have an account?
+          <button type="button" class="link-button" data-go="login">Log in</button>
+        </p>
+      </div>
+    </section>
+  </main>
+
+  <!-- ---------- Forgot password dialog ---------- -->
+  <dialog id="forgot-dialog" aria-labelledby="forgot-title">
+    <p class="eyebrow">ACCOUNT HELP</p>
+    <h2 id="forgot-title">Forgot your password?</h2>
+    <p class="muted">
+      Password resets are handled by your response coordinator for now.
+      Contact them with your username and they can reset your account.
+    </p>
+    <div class="form-actions">
+      <button type="button" id="close-forgot" class="primary-button" autofocus>Got it</button>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>Disaster Request and Resource Management System</p>
+    <p>Team API · Sign in</p>
+  </footer>
+
+  <noscript>
+    <p class="message error">Enable JavaScript to log in.</p>
+  </noscript>
+
+  <script type="module">
+    import { login, signup, getCurrentUser } from "./api.js";
+
+    // Where each role lands after logging in.
+    const ROLE_HOME = {
+      "Community Member": "community-member.html",
+      "Response Coordinator": "response-coordinator.html",
+      "Responder": "index.html",
+      "Volunteer": "index.html",
+    };
+
+    const $ = (selector) => document.querySelector(selector);
+    let busy = false;
+
+    function goHome(role) {
+      window.location.replace(ROLE_HOME[role] ?? "index.html");
+    }
+
+    function clearMessages() {
+      $("#notice").hidden = true;
+      $("#error").hidden = true;
+    }
+
+    function showMessage(text, isError = false) {
+      clearMessages();
+      const target = $(isError ? "#error" : "#notice");
+      target.textContent = text;
+      target.hidden = false;
+    }
+
+    function setBusy(form, value, label) {
+      busy = value;
+      const submit = form.querySelector("[type=submit]");
+      submit.disabled = value;
+      if (label) submit.textContent = label;
+    }
+
+    // ---------- Tabs ----------
+    const tabs = { login: $("#tab-login"), signup: $("#tab-signup") };
+    const views = { login: $("#login-view"), signup: $("#signup-view") };
+
+    function showView(name, focus = true) {
+      clearMessages();
+      for (const key of Object.keys(tabs)) {
+        const active = key === name;
+        tabs[key].setAttribute("aria-selected", String(active));
+        tabs[key].tabIndex = active ? 0 : -1;
+        views[key].hidden = !active;
+      }
+      if (focus) views[name].querySelector("input, select").focus();
+    }
+
+    tabs.login.addEventListener("click", () => showView("login"));
+    tabs.signup.addEventListener("click", () => showView("signup"));
+
+    // Arrow-key navigation between tabs (WAI-ARIA tabs pattern)
+    $(".tabs").addEventListener("keydown", (event) => {
+      if (!["ArrowLeft", "ArrowRight"].includes(event.key)) return;
+      const next = tabs.login.getAttribute("aria-selected") === "true" ? "signup" : "login";
+      showView(next, false);
+      tabs[next].focus();
+    });
+
+    document.querySelectorAll("[data-go]").forEach((button) => {
+      button.addEventListener("click", () => showView(button.dataset.go));
+    });
+
+    // ---------- Log in ----------
+    $("#login-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
+
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form));
+      data.user_name = data.user_name.trim();
+
+      if (!data.user_name || !data.password) {
+        showMessage("Enter your username and password.", true);
+        return;
+      }
+
+      clearMessages();
+      setBusy(form, true, "Logging in…");
+
+      try {
+        const result = await login(data.user_name, data.password);
+        goHome(result.role);
+      } catch (error) {
+        // Use one message for any 401 so the page doesn't reveal which
+        // usernames exist.
+        showMessage(
+          error.status === 401
+            ? "Incorrect username or password."
+            : error.message || "Login failed. Check your connection and try again.",
+          true,
+        );
+        form.password.value = "";
+        form.password.focus();
+        setBusy(form, false, "Log in");
+      }
+    });
+
+    // ---------- Sign up ----------
+    $("#signup-form").addEventListener("submit", async (event) => {
+      event.preventDefault();
+      if (busy) return;
+
+      const form = event.currentTarget;
+      const data = Object.fromEntries(new FormData(form));
+      for (const key of ["first_name", "last_name", "user_name"]) {
+        data[key] = data[key].trim();
+      }
+
+      if (!data.first_name || !data.last_name || !data.user_name || !data.role) {
+        showMessage("Fill in every field to create your account.", true);
+        return;
+      }
+      if (data.password.length < 8) {
+        showMessage("Password must be at least 8 characters.", true);
+        return;
+      }
+      if (data.password !== data.confirm_password) {
+        showMessage("Passwords don’t match.", true);
+        form.confirm_password.focus();
+        return;
+      }
+
+      clearMessages();
+      setBusy(form, true, "Creating account…");
+
+      try {
+        await signup({
+          first_name: data.first_name,
+          last_name: data.last_name,
+          role: data.role,
+          user_name: data.user_name,
+          password: data.password,
+        });
+
+        // /api/signup doesn't start a session, so log the new user in.
+        const result = await login(data.user_name, data.password);
+        goHome(result.role);
+      } catch (error) {
+        showMessage(
+          error.status === 409
+            ? "That username is already taken. Try another."
+            : error.message || "Sign-up failed. Try again.",
+          true,
+        );
+        setBusy(form, false, "Create account");
+      }
+    });
+
+    // ---------- Forgot password ----------
+    $("#forgot-password").addEventListener("click", () => {
+      $("#forgot-dialog").showModal();
+    });
+    $("#close-forgot").addEventListener("click", () => {
+      $("#forgot-dialog").close();
+    });
+
+    // ---------- Already signed in? Skip the login page. ----------
+    getCurrentUser()
+      .then((user) => { if (user?.role) goHome(user.role); })
+      .catch(() => { /* 401 = not signed in; stay on this page */ });
+  </script>
+</body>
+</html>

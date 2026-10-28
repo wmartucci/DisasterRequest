@@ -4,7 +4,17 @@ import {
   createIncidentReport,
   updateIncidentReportStatus as updateStatus,
   deleteIncidentReport as deleteReport,
+  getCurrentUser,
+  logout,
 } from "./api.js";
+
+// ---------- Login check: send signed-out users to the login page ----------
+try {
+  await getCurrentUser();
+} catch {
+  window.location.replace("login.html");
+  throw new Error("Not signed in");
+}
 
 const $ = (selector) => document.querySelector(selector);
 
@@ -566,6 +576,12 @@ $("#filters").addEventListener("reset", () => {
 $("#refresh").addEventListener("click", () => {
   clearMessages();
   load();
+});
+
+// ---------- Log out button ----------
+$("#logout").addEventListener("click", async () => {
+  await logout();
+  window.location.replace("login.html");
 });
 
 load();

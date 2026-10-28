@@ -15,7 +15,36 @@ async function requestApi(path, options = {}) {
         }
         throw new Error(detail);
     }
+
+    // 204 No Content (e.g. /api/logout) has no body to parse.
+    if (response.status === 204) return null;
+    
     return response.json();
+}
+ 
+// --------- AUTH functions ----------
+export function login(user_name, password) {
+    return requestApi("/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ user_name, password }),
+    });
+}
+ 
+export function signup({ first_name, last_name, role, user_name, password }) {
+    return requestApi("/api/signup", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ first_name, last_name, role, user_name, password }),
+    });
+}
+ 
+export function logout() {
+    return requestApi("/api/logout", { method: "POST" });
+}
+ 
+export function getCurrentUser() {
+    return requestApi("/api/me");
 }
 
 // --------- CREATE functions ----------
