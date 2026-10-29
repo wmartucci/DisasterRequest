@@ -135,8 +135,7 @@ def update_incident_report_status(
 # --------- DELETE endpoints ----------
 @app.delete("/api/incident-reports/{report_id}")
 def delete_incident_report(
-    report_id: int,
-    user=Depends(require_roles("Response Coordinator", "Community Member")),
+    report_id: int
 ) -> dict:
     # Required role: Response Coordinator, Community Member
     # If community member, must match community member ID that created it

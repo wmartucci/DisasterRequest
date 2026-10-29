@@ -32,15 +32,46 @@
             <div id="district-toggle">
                 <!-- <calcite-label><strong>Aggregation</strong> -->
                     <calcite-switch label-text-end="Status" label-text-start="Type"></calcite-switch>
+                    <calcite-switch label-text-end="Districts" label-text-start="Reports"></calcite-switch>
                 <!-- </calcite-label> -->
             </div>
             <calcite-panel id="map-panel" heading="Map" scale="s">
                 <arcgis-map id="map" basemap="topo-vector" center="-82.54947363304201, 35.580068654542416" zoom=11>
                 </arcgis-map>
             </calcite-panel>
-            <arcgis-feature-table
-                reference-element="#map" id="table"
-            ></arcgis-feature-table>
+            <arcgis-feature-table reference-element="#map" id="table"></arcgis-feature-table>
+            <div id="report-details">
+                <h3 id="report-details-heading">Report Details</h3>
+                <calcite-card id="report-details-card" heading="Report Details">
+                    <div id="report-details-grid">
+                        <div id="report-details-text-div">
+                            <div id="report-details-text">Select a report</div>
+                            <button id="delete-report-button">Delete Selected Report</button>
+                        </div>
+                        <div id="report-details-image-div">
+                            <img id="report-details-image" src="" alt="No image available">
+                        </div>
+                    </div>
+                </calcite-card>
+            </div>
         </div>
+        <calcite-dialog id="delete-dialog" modal heading="Delete Report" id="example-dialog">
+            <calcite-label>
+                Report ID
+                <calcite-input-number id="delete-report-id" value="1" placeholder="2"></calcite-input>
+            </calcite-label>
+            <calcite-notice open icon="exclamation-mark-triangle" width="full">
+                <div slot="message">This operation cannot be undone</div>
+            </calcite-notice>
+            <calcite-button slot="footer-start" kind="neutral">
+                Back
+            </calcite-button>
+            <calcite-button slot="footer-end" appearance="outline">
+                Cancel
+            </calcite-button>
+            <calcite-button id="dialog-delete-button" slot="footer-end">
+                Delete
+            </calcite-button>
+        </calcite-dialog>
     </calcite-shell>
 </body>

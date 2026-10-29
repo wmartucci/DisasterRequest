@@ -45,6 +45,7 @@ function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
         url: url,
         geometryType: geometryType
     });
+    layer.outFields = ["*"];
     return layer;
 }
 
@@ -226,13 +227,25 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
     const layer = result.graphic.layer;
     const layerView = await mapElement.view.whenLayerView(layer);
     highlightHandle = layerView.highlight(result.graphic);
-
     if (layer.id === "incidents") {
         const objectId = result.graphic.getObjectId();
         table.highlightIds.removeAll();
         table.highlightIds.add(objectId);
 
         await table.scrollToRow(objectId);
+        const reportDetails = document.getElementById("report-details-text");
+        const reportAttributes = result.graphic.attributes;
+        const text = `<strong>Type</strong>: ${reportAttributes.type}
+
+        <strong>Status</strong>: ${reportAttributes.status}
+
+        <strong>Description</strong>: ${reportAttributes.description}`
+        reportDetails.innerHTML = text;
+
+        const image = document.getElementById("report-details-image");
+        image.src = reportAttributes.image_url;
+        const deleteReportID = document.getElementById("delete-report-id");
+        deleteReportID.value = String(reportAttributes.report_id);
     }
     else if (layer.id === "districts") {
         const graphic = result.graphic;
@@ -263,3 +276,32 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         table.hiddenFields = ["__OBJECTID"];
     }
 });
+
+const deleteButton = document.getElementById("delete-report-button");
+deleteButton.addEventListener("click", function(event) {
+    const deleteDialog = document.getElementById("delete-dialog");
+    deleteDialog.open = true;
+});
+
+const dialogDeleteButton = document.getElementById("dialog-delete-button");
+
+dialogDeleteButton.addEventListener("click", function(event) {
+    const reportToDelete = document.getElementById("delete-report-id").value;
+    let reportID = parseInt(reportToDelete);
+
+    fetch(`http://127.0.0.1:8000/api/incident-reports/${reportID}`, {
+        method: "DELETE"
+    })
+    .then(response => {
+        if (response.ok) {
+            console.log(`Report ${reportID} deleted successfully`);
+        }
+        else {
+            console.log(`Report ${reportID} not deleted due to error`);
+        }
+    })
+    .catch(error => console.error("Error:", error));
+
+    const deleteDialog = document.getElementById("delete-dialog");
+    deleteDialog.open = false;
+})
