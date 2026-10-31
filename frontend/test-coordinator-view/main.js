@@ -74,7 +74,7 @@ mapElement.map.add(districtsLayer);
 // Load incidents layer
 const incidents_geojson = await loadIncidentReports({as_geojson: true});
 const layer = geoJSONtoLayer(incidents_geojson, "incidents", "Incident Reports");
-const renderer = {
+const typeRenderer = {
     type: "unique-value",
     field: "type",
     defaultSymbol: {
@@ -116,9 +116,52 @@ const renderer = {
             }
         }
     ]
-}
+};
+const statusRenderer = {
+    type: "unique-value",
+    field: "status",
+    defaultSymbol: {
+        type: "simple-marker",
+        color: "gray",
+        size: 10
+    },
+    uniqueValueInfos: [
+        {
+            value: "Pending Assistance",
+            symbol: {
+                type: "simple-marker",
+                color: "#94130e",
+                size: 10
+            }
+        },
+        {
+            value: "Help Requested",
+            symbol: {
+                type: "simple-marker",
+                color: "#d87914",
+                size: 10
+            }
+        },
+        {
+            value: "Unit in Response",
+            symbol: {
+                type: "simple-marker",
+                color: "#bc9a12",
+                size: 10
+            }
+        },
+        {
+            value: "Resolved",
+            symbol: {
+                type: "simple-marker",
+                color: "#5fb108",
+                size: 10
+            }
+        }
+    ]
+};
 await layer.load();
-layer.renderer = renderer;
+layer.renderer = typeRenderer;
 mapElement.map.add(layer);
 var activeLayer = layer;
 
@@ -134,43 +177,35 @@ table.addEventListener("arcgisCellClick", (event) => {
     table.highlightIds.add(id);
 });
 
+let statusType = "type";
+let type = null;
+let status = null;
+
 // Retrieve type or status corresponding with selected card
 function selectedCardToTypeStatus(selectedCard) {
     if (selectedCard == null) return null;
-    return selectedCard.id === "card-1" ? "Fire"
-            : selectedCard.id === "card-2" ? "Power"
-            : selectedCard.id === "card-3" ? "Fallen Tree"
-            : selectedCard.id === "card-4" ? "Flood"
+    if (statusType === "type") {
+        return selectedCard.id === "card-1" ? "Fire"
+                : selectedCard.id === "card-2" ? "Power"
+                : selectedCard.id === "card-3" ? "Fallen Tree"
+                : selectedCard.id === "card-4" ? "Flood"
+                : null;
+    }
+    return selectedCard.id === "card-1" ? "Pending Assistance"
+            : selectedCard.id === "card-2" ? "Help Requested"
+            : selectedCard.id === "card-3" ? "Unit in Response"
+            : selectedCard.id === "card-4" ? "Resolved"
             : null;
 }
 
 var selectedCard = null;
 var selectedDistrict = null;
 
-// Card event listener, fetch new GeoJSON based on type clicked
-async function handleCardClick(event) {
-    if (selectedCard != null) selectedCard.classList.toggle("selected");
+async function updateMapAndTable() {
+    const result = await loadIncidentReports({as_geojson: true, type: type, status: status, district_id: selectedDistrict});
+    const layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
 
-    let result;
-    let layer;
-    let selectedSameCard = false;
-
-    if (selectedCard == event.currentTarget) {
-        result = await loadIncidentReports({as_geojson: true, district_id: selectedDistrict});
-        layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
-        selectedSameCard = true;
-    }
-    else {
-        selectedCard = event.currentTarget;
-        selectedCard.classList.toggle("selected");    
-
-        const type = selectedCardToTypeStatus(selectedCard);
-
-        result = await loadIncidentReports({as_geojson: true, type: type, district_id: selectedDistrict});
-        layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
-    }
-
-    layer.renderer = renderer;
+    layer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
     table.highlightIds.removeAll();
     table.layer = null;
 
@@ -182,7 +217,28 @@ async function handleCardClick(event) {
     await layer.load();
 
     table.layer = layer;
-    table.hiddenFields = ["__OBJECTID"];
+    table.hiddenFields = ["__OBJECTID"];    
+}
+
+// Card event listener, fetch new GeoJSON based on type clicked
+async function handleCardClick(event) {
+    if (selectedCard != null) selectedCard.classList.toggle("selected");
+    let selectedSameCard = false;
+
+    if (selectedCard == event.currentTarget) {
+        selectedSameCard = true;
+        type = null;
+        status = null;
+    }
+    else {
+        selectedCard = event.currentTarget;
+        selectedCard.classList.toggle("selected");    
+
+        if (statusType === "type") type = selectedCardToTypeStatus(selectedCard);
+        else if (statusType === "status") status = selectedCardToTypeStatus(selectedCard);
+    }
+
+    await updateMapAndTable();
 
     if (selectedSameCard) {
         selectedCard = null;
@@ -196,13 +252,46 @@ document.querySelectorAll('[id^="card-"]').forEach(card => {
 
 // Update incident type stats
 async function updateIncidentStats(district_id = null) {
-    const type_count_fields = ["fire_count", "power_count", "tree_count", "flood_count"]
+    const type_labels = ["Fires", "Power Outages", "Fallen Trees", "Floods"];
+    const count_fields = statusType === "type" ? ["fire_count", "power_count", "tree_count", "flood_count"] :
+                                                 ["pending_count", "requested_count", "in_response_count", "resolved_count"];
+    
+    const labels = statusType === "type" ? ["Fires", "Power Outages", "Fallen Trees", "Floods"] : 
+                                           ["Pending Assistance", "Help Requested", "Unit in Response", "Resolved"];
+    
     const incident_stats = await loadIncidentReportStats({district_id: district_id});
     document.querySelectorAll('[id^="card-"]').forEach((card, index) => {
-        card.querySelector("p").textContent = incident_stats[0][type_count_fields[index]];
+        const elements = [...card.querySelectorAll("p")]
+        elements[0].textContent = incident_stats[0][count_fields[index]];
+        elements[1].textContent = labels[index];
     });
 }
 await updateIncidentStats();
+
+// Toggle listener
+const statusTypeSwitch = document.getElementById("status-type-switch");
+statusTypeSwitch.addEventListener("click", async function(event) {
+    statusType = statusType === "type" ? "status" : "type";  
+
+    if (selectedCard != null) {
+        selectedCard.classList.toggle("selected");
+        type = null;
+        status = null;
+        selectedCard = null;
+    }
+
+    if (statusType === "type") type = selectedCardToTypeStatus(selectedCard);
+    else if (statusType === "status") status = selectedCardToTypeStatus(selectedCard);
+
+    const colorList = statusType === "type" ? ["#94360E", "#D8CB14", "#199720", "#005380"] : 
+                                              ["#94130e", "#d87914", "#bc9a12", "#5fb108"]
+    document.querySelectorAll('[id^="card-"]').forEach((card, index) => {
+        card.style.backgroundColor = colorList[index];
+    });
+
+    await updateMapAndTable();
+    await updateIncidentStats();
+});
 
 // Update display when feature selected in map
 let highlightHandle;
@@ -255,10 +344,10 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             returnGeometry: false
         });
         const districtId = feature.features[0].attributes["district_id"];
-        const type = selectedCardToTypeStatus(selectedCard);
-        const incidentsInDistrict = await loadIncidentReports({type: type, district_id: districtId, as_geojson: true});
+        // const type = selectedCardToTypeStatus(selectedCard);
+        const incidentsInDistrict = await loadIncidentReports({type: type, status: status, district_id: districtId, as_geojson: true});
         const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
-        incidentsInDistrictLayer.renderer = renderer;
+        incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
 
         table.highlightIds.removeAll();
         table.layer = null;
@@ -284,7 +373,6 @@ deleteButton.addEventListener("click", function(event) {
 });
 
 const dialogDeleteButton = document.getElementById("dialog-delete-button");
-
 dialogDeleteButton.addEventListener("click", function(event) {
     const reportToDelete = document.getElementById("delete-report-id").value;
     let reportID = parseInt(reportToDelete);

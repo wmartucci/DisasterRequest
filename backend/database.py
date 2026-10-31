@@ -284,21 +284,20 @@ def get_incidents(type, status, district_id, as_geojson):
     return run_query(final_query, params=params)
 
 def get_incident_stats(district_id: int = None):
-    if district_id is None:
-        return run_query("""SELECT COUNT(*) AS total_incidents, 
-                                   COUNT(*) FILTER (WHERE type = 'Flood') AS flood_count, 
-                                   COUNT(*) FILTER (WHERE type = 'Fallen Tree') AS tree_count, 
-                                   COUNT(*) FILTER (WHERE type = 'Power') AS power_count, 
-                                   COUNT(*) FILTER (WHERE type = 'Fire') AS fire_count 
-                            FROM incident_reports;""")
-    return run_query(f"""SELECT COUNT(*) AS total_incidents, 
-                                COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count, 
-                                COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count, 
-                                COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count, 
-                                COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count 
-                         FROM incident_reports i
-                         JOIN districts d ON ST_Within(i.location, d.boundary)
-                         WHERE d.district_id = {district_id};""")
+    query = """SELECT COUNT(*) AS total_incidents, 
+                                   COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count, 
+                                   COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count, 
+                                   COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count, 
+                                   COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count,
+                                   COUNT(*) FILTER (WHERE i.status = 'Pending Assistance') AS pending_count, 
+                                   COUNT(*) FILTER (WHERE i.status = 'Help Requested') AS requested_count, 
+                                   COUNT(*) FILTER (WHERE i.status = 'Unit in Response') AS in_response_count, 
+                                   COUNT(*) FILTER (WHERE i.status = 'Resolved') AS resolved_count 
+                            FROM incident_reports i"""
+    if district_id is not None:
+        query = query + f""" JOIN districts d ON ST_Within(i.location, d.boundary)
+                                 WHERE d.district_id = {district_id}"""
+    return run_query(query)
 
 def get_districts():
     result = run_query("""SELECT json_build_object(
