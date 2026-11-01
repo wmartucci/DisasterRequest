@@ -1,4 +1,5 @@
 const GeoJSONLayer = await $arcgis.import("@arcgis/core/layers/GeoJSONLayer.js");
+const Collection = await $arcgis.import("@arcgis/core/core/Collection.js");
 
 async function loadIncidentReports({type = null, status = null, district_id = null, as_geojson = null} = {}) {
     const filters = {
@@ -51,6 +52,13 @@ function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
 
 const mapElement = document.querySelector("arcgis-map");
 await mapElement.viewOnReady();
+
+const mapView = mapElement.view;
+const highlights = mapElement.highlights;
+mapElement.highlights = new Collection([
+    {name: "incident", color: "#00ffff", fillOpacity: 0},
+    {name: "district", color: "#00ffff", fillOpacity: 0}
+]);
 
 // Load districts layer
 const response = await fetch("http://127.0.0.1:8000/api/districts");
@@ -295,7 +303,10 @@ statusTypeSwitch.addEventListener("click", async function(event) {
 
 // Update display when feature selected in map
 let highlightHandle;
-const layerView = await mapElement.view.whenLayerView(layer);
+let incidentHighlight = null;
+let districtHighlight = null;
+
+const layerView = await mapElement.view.whenLayerView(layer); 
 mapElement.addEventListener("arcgisViewClick", async (event) => {
     const incidents = mapElement.map.findLayerById("incidents");
     const districts = mapElement.map.findLayerById("districts");
@@ -310,16 +321,16 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         r.type === "graphic" && r.graphic.layer.id === "districts"
     );
    
-    highlightHandle?.remove();
     if (!result) return;
 
     const layer = result.graphic.layer;
     const layerView = await mapElement.view.whenLayerView(layer);
-    highlightHandle = layerView.highlight(result.graphic);
     if (layer.id === "incidents") {
+        incidentHighlight?.remove();
+        incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
         const objectId = result.graphic.getObjectId();
-        table.highlightIds.removeAll();
-        table.highlightIds.add(objectId);
+        // table.highlightIds.removeAll();
+        // table.highlightIds.add(objectId);
 
         await table.scrollToRow(objectId);
         const reportDetails = document.getElementById("report-details-text");
@@ -343,26 +354,64 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             outFields: ["*"],
             returnGeometry: false
         });
-        const districtId = feature.features[0].attributes["district_id"];
-        // const type = selectedCardToTypeStatus(selectedCard);
-        const incidentsInDistrict = await loadIncidentReports({type: type, status: status, district_id: districtId, as_geojson: true});
-        const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
-        incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
+        const currentSelectedDistrict = feature.features[0].attributes["district_id"];
 
-        table.highlightIds.removeAll();
-        table.layer = null;
+        // Select new district
+        if (currentSelectedDistrict != selectedDistrict) {
+            districtHighlight?.remove();
+            districtHighlight = layerView.highlight(result.graphic, {"name": "district"});
 
-        mapElement.map.remove(activeLayer);
-        mapElement.map.add(incidentsInDistrictLayer);
 
-        activeLayer = incidentsInDistrictLayer;
-        selectedDistrict = districtId;
-        
-        await incidentsInDistrictLayer.load();
-        await updateIncidentStats(districtId);
+            // const type = selectedCardToTypeStatus(selectedCard);
+            const incidentsInDistrict = await loadIncidentReports({type: type, status: status, district_id: currentSelectedDistrict, as_geojson: true});
+            const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
+            incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
 
-        table.layer = incidentsInDistrictLayer;
-        table.hiddenFields = ["__OBJECTID"];
+            table.highlightIds.removeAll();
+            table.layer = null;
+
+            incidentHighlight?.remove();
+            incidentHighlight = null;
+
+            mapElement.map.remove(activeLayer);
+            mapElement.map.add(incidentsInDistrictLayer);
+
+            activeLayer = incidentsInDistrictLayer;
+            selectedDistrict = currentSelectedDistrict;
+            
+            await incidentsInDistrictLayer.load();
+            await updateIncidentStats(currentSelectedDistrict);
+
+            table.layer = incidentsInDistrictLayer;
+            table.hiddenFields = ["__OBJECTID"];
+            selectedDistrict = currentSelectedDistrict;
+        }
+        else {
+            districtHighlight?.remove();
+
+            const incidentsInDistrict = await loadIncidentReports({type: type, status: status, as_geojson: true});
+            const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
+            incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
+
+            table.highlightIds.removeAll();
+            table.layer = null;
+
+            // incidentHighlight?.remove();
+            // incidentHighlight = null;
+
+            mapElement.map.remove(activeLayer);
+            mapElement.map.add(incidentsInDistrictLayer);
+
+            activeLayer = incidentsInDistrictLayer;
+            selectedDistrict = null;
+            // highlightHandle.remove();
+            
+            await incidentsInDistrictLayer.load();
+            await updateIncidentStats();
+
+            table.layer = incidentsInDistrictLayer;
+            table.hiddenFields = ["__OBJECTID"];
+        }
     }
 });
 
