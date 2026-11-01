@@ -249,7 +249,6 @@ var selectedCard = null;
 var selectedDistrict = null;
 
 async function getRenderer(layer = null) {
-    console.log("Getting renderer");
     let field;
     if (type != null) {
         switch (type) {
@@ -286,22 +285,17 @@ async function getRenderer(layer = null) {
     else {
         field = "total_incidents";
     }
-    console.log(field);
     if (districtReport === "district") {
-        console.log("district");
         await layer.load();
 
         let colorScheme = [];
 
-        console.log(getColorScheme(selectedCard === null ? "" : selectedCardToTypeStatus(selectedCard)));
         const [ramp, reverse] = getColorScheme(selectedCard === null ? "" : selectedCardToTypeStatus(selectedCard));
         colorScheme = colorRamps.byName(ramp);
-        console.log(colorScheme);
         colorScheme = colorScheme.colorsForClassBreaks
             .find(c => c.numClasses === 5)
             .colors;
         colorScheme = reverse ? colorScheme.reverse() : colorScheme;
-        console.log(colorScheme);
 
         const result = await classBreaks({
             layer,
@@ -321,19 +315,9 @@ async function getRenderer(layer = null) {
                 }
             }))
         });
-
-        // const rendererResult = await createClassBreaksRenderer({
-        //     layer: layer,
-        //     field: field,
-        //     classificationMethod: "natural-breaks",
-        //     numClasses: 5
-        // });
-        // console.log("Generated renderer for field: ", field);
-        // console.log(rendererResult.renderer.classBreakInfos);
         return renderer;
     }
     else {
-        console.log("individual");
         return statusType === "type" ? typeRenderer : statusRenderer;
     }
 }
@@ -441,28 +425,37 @@ statusTypeSwitch.addEventListener("click", async function(event) {
     await updateIncidentStats();
 });
 
-const districtReportSwitch = document.getElementById("district-report-switch");
-districtReportSwitch.addEventListener("click", async function(event) {
-    districtReport = districtReport === "district" ? "report" : "district";
-    await updateMapAndTable();
-    await updateIncidentStats();
-});
-
 // Update display when feature selected in map
 let highlightHandle;
 let incidentHighlight = null;
 let districtHighlight = null;
 
+const districtReportSwitch = document.getElementById("district-report-switch");
+districtReportSwitch.addEventListener("click", async function(event) {
+    districtReport = districtReport === "district" ? "report" : "district";
+    incidentHighlight?.remove();
+    incidentHighlight = null;
+    // if (districtReport === "report") {
+    //     selectedDistrict = null;
+    // }
+    await updateMapAndTable();
+    await updateIncidentStats();
+});
+
 const layerView = await mapElement.view.whenLayerView(layer); 
 mapElement.addEventListener("arcgisViewClick", async (event) => {
+    // Get topmost feature that was clicked on
     const incidents = mapElement.map.findLayerById("incidents");
     const districts = mapElement.map.findLayerById("districts");
+    const districtsStyled = mapElement.map.findLayerById("districts_styled");
 
     const response = await mapElement.hitTest(event.detail, {
-        include: [incidents, districts].filter(Boolean)
+        include: [districtsStyled, incidents, districts].filter(Boolean)
     });
 
     const result = response.results.find(r => 
+        r.type === "graphic" && r.graphic.layer.id === "districts_styled"
+    ) ?? response.results.find(r => 
         r.type === "graphic" && r.graphic.layer.id === "incidents"
     ) ?? response.results.find(r => 
         r.type === "graphic" && r.graphic.layer.id === "districts"
@@ -472,6 +465,8 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
     const layer = result.graphic.layer;
     const layerView = await mapElement.view.whenLayerView(layer);
+
+    // Highlight selected incident on map and table and update information card
     if (layer.id === "incidents") {
         incidentHighlight?.remove();
         incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
@@ -494,6 +489,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         const deleteReportID = document.getElementById("delete-report-id");
         deleteReportID.value = String(reportAttributes.report_id);
     }
+    // Highlight selected district on map
     else if (layer.id === "districts") {
         const graphic = result.graphic;
         const feature = await graphic.layer.queryFeatures({
@@ -503,17 +499,15 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         });
         const currentSelectedDistrict = feature.features[0].attributes["district_id"];
 
-        // Select new district
+        // Highlight new district selection if differs from previous selection, load incidents in district
         if (currentSelectedDistrict != selectedDistrict) {
             districtHighlight?.remove();
             districtHighlight = layerView.highlight(result.graphic, {"name": "district"});
 
-
-            // const type = selectedCardToTypeStatus(selectedCard);
+            // Load incidents in district
             const incidentsInDistrict = await loadIncidentReports({type: type, status: status, district_id: currentSelectedDistrict, as_geojson: true});
             const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
-            const rendererResult = await getRenderer();
-            incidentsInDistrictLayer.renderer = rendererResult;
+            incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
 
             table.highlightIds.removeAll();
             table.layer = null;
@@ -534,6 +528,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             table.hiddenFields = ["__OBJECTID"];
             selectedDistrict = currentSelectedDistrict;
         }
+        // Remove highlight from district if clicked again, reload all incidents
         else {
             districtHighlight?.remove();
 
@@ -545,15 +540,11 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             table.highlightIds.removeAll();
             table.layer = null;
 
-            // incidentHighlight?.remove();
-            // incidentHighlight = null;
-
             mapElement.map.remove(activeLayer);
             mapElement.map.add(incidentsInDistrictLayer);
 
             activeLayer = incidentsInDistrictLayer;
             selectedDistrict = null;
-            // highlightHandle.remove();
             
             await incidentsInDistrictLayer.load();
             await updateIncidentStats();
@@ -562,8 +553,37 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             table.hiddenFields = ["__OBJECTID"];
         }
     }
+    // Highlight selected district on choropleth map
     else {
-        console.log("Clicked styled district");
+        const graphic = result.graphic;
+        const feature = await graphic.layer.queryFeatures({
+            objectIds: [graphic.getObjectId()],
+            outFields: ["*"],
+            returnGeometry: false
+        });
+        const currentSelectedDistrict = feature.features[0].attributes["district_id"];
+
+        // Highlight new district
+        if (currentSelectedDistrict != selectedDistrict) {
+            districtHighlight?.remove();
+            districtHighlight = layerView.highlight(result.graphic, {"name": "district"});
+
+            table.highlightIds.removeAll();
+            incidentHighlight?.remove();
+            incidentHighlight = null;
+
+            selectedDistrict = currentSelectedDistrict;
+        }
+        // Remove highlight from previously highlighted district
+        else {
+            districtHighlight?.remove();
+            selectedDistrict = null;
+
+            table.highlightIds.removeAll();
+            table.layer = null;
+
+            table.hiddenFields = ["__OBJECTID"];
+        }
     }
 });
 
