@@ -299,19 +299,43 @@ def get_incident_stats(district_id: int = None):
                                  WHERE d.district_id = {district_id}"""
     return run_query(query)
 
-def get_districts():
-    result = run_query("""SELECT json_build_object(
-                            'type', 'FeatureCollection', 
-                            'features', COALESCE(
-                                json_agg(ST_AsGeoJSON(t.*)::json),
-                                '[]'::json
+def get_districts(include_counts = False):
+    if not include_counts:
+        result = run_query("""SELECT json_build_object(
+                                'type', 'FeatureCollection', 
+                                'features', COALESCE(
+                                    json_agg(ST_AsGeoJSON(t.*)::json),
+                                    '[]'::json
+                                )
                             )
-                        )
-                        FROM (
-                            SELECT * FROM districts
-                        ) AS t
-                        """)
-    if 'json_build_object' in result[0]:
-        return result[0]['json_build_object']
+                            FROM (
+                                SELECT * FROM districts
+                            ) AS t""")
+        if 'json_build_object' in result[0]:
+            return result[0]['json_build_object']
+        else:
+            return result
     else:
-        return result
+        result = run_query("""SELECT json_build_object(
+                                'type', 'FeatureCollection',
+                                'features', json_agg(ST_AsGeoJSON(t.*)::json)
+                            )
+                            FROM (
+                            SELECT 
+                                d.district_id,
+                                d.district_name, 
+                                d.boundary,
+                                COUNT(*) AS total_incidents,
+                                COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count,
+                                COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count,
+                                COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count,
+                                COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count
+                            FROM districts d
+                            LEFT JOIN incident_reports i ON ST_Contains(d.boundary, i.location)
+                            GROUP BY d.district_id, d.district_name
+                            ORDER BY d.district_id ASC
+                            ) AS t;""")
+        if 'json_build_object' in result[0]:
+            return result[0]['json_build_object']
+        else:
+            return result

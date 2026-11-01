@@ -1,5 +1,15 @@
 const GeoJSONLayer = await $arcgis.import("@arcgis/core/layers/GeoJSONLayer.js");
 const Collection = await $arcgis.import("@arcgis/core/core/Collection.js");
+const classBreaks = await $arcgis.import(
+    "@arcgis/core/smartMapping/statistics/classBreaks.js"
+);
+const ClassBreaksRenderer = await $arcgis.import(
+    "@arcgis/core/renderers/ClassBreaksRenderer.js"
+);
+const Color = await $arcgis.import("@arcgis/core/Color.js");
+const colorRamps = await $arcgis.import(
+    "@arcgis/core/smartMapping/symbology/support/colorRamps.js"
+);
 
 async function loadIncidentReports({type = null, status = null, district_id = null, as_geojson = null} = {}) {
     const filters = {
@@ -188,6 +198,7 @@ table.addEventListener("arcgisCellClick", (event) => {
 let statusType = "type";
 let type = null;
 let status = null;
+let districtReport = "report";
 
 // Retrieve type or status corresponding with selected card
 function selectedCardToTypeStatus(selectedCard) {
@@ -206,14 +217,143 @@ function selectedCardToTypeStatus(selectedCard) {
             : null;
 }
 
+// function getColorScheme(start, end, count) {
+//     const startColor = new Color(start);
+//     const endColor = new Color(end);
+
+//     return Array.from({length: count}, (_, i) => 
+//         Color.blendColors(
+//             startColor,
+//             endColor,
+//             count === 1 ? 0 : i / (count - 1)
+//         ).toHex()
+//     );
+// }
+
+function getColorScheme(label) {
+    switch (label) {
+        case "Fire":
+            return ["Red 3", false];
+        case "Power":
+            return ["Esri Yellow 1", true];
+        case "Fallen Tree":
+            return ["Green 4", false];
+        case "Flood":
+            return ["Blue 3", false];
+        default:
+            return ["Gray 1", false];
+    }
+}
+
 var selectedCard = null;
 var selectedDistrict = null;
 
-async function updateMapAndTable() {
-    const result = await loadIncidentReports({as_geojson: true, type: type, status: status, district_id: selectedDistrict});
-    const layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
+async function getRenderer(layer = null) {
+    console.log("Getting renderer");
+    let field;
+    if (type != null) {
+        switch (type) {
+            case "Fire":
+                field = "fire_count";
+                break;
+            case "Power":
+                field = "power_count";
+                break;
+            case "Fallen Tree":
+                field = "tree_count";
+                break;
+            case "Flood":
+                field = "flood_count";
+                break;
+        }
+    }
+    else if (status != null) {
+        switch (status) {
+            case "Pending Assistance":
+                field = "pending_count";
+                break;
+            case "Help Requested":
+                field = "requested_count";
+                break;
+            case "Unit in Response":
+                field = "in_response_count";
+                break;
+            case "Resolved":
+                field = "resolved_count";
+                break;
+        }
+    }
+    else {
+        field = "total_incidents";
+    }
+    console.log(field);
+    if (districtReport === "district") {
+        console.log("district");
+        await layer.load();
 
-    layer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
+        let colorScheme = [];
+
+        console.log(getColorScheme(selectedCard === null ? "" : selectedCardToTypeStatus(selectedCard)));
+        const [ramp, reverse] = getColorScheme(selectedCard === null ? "" : selectedCardToTypeStatus(selectedCard));
+        colorScheme = colorRamps.byName(ramp);
+        console.log(colorScheme);
+        colorScheme = colorScheme.colorsForClassBreaks
+            .find(c => c.numClasses === 5)
+            .colors;
+        colorScheme = reverse ? colorScheme.reverse() : colorScheme;
+        console.log(colorScheme);
+
+        const result = await classBreaks({
+            layer,
+            field,
+            classificationMethod: "natural-breaks",
+            numClasses: 5
+        });
+
+        const renderer = new ClassBreaksRenderer({
+            field,
+            classBreakInfos: result.classBreakInfos.map((info, i) => ({
+                ...info,
+                symbol: {
+                    type: "simple-fill",
+                    color: colorScheme[i],
+                    outline: {color: "#000000", width: 0.5}
+                }
+            }))
+        });
+
+        // const rendererResult = await createClassBreaksRenderer({
+        //     layer: layer,
+        //     field: field,
+        //     classificationMethod: "natural-breaks",
+        //     numClasses: 5
+        // });
+        // console.log("Generated renderer for field: ", field);
+        // console.log(rendererResult.renderer.classBreakInfos);
+        return renderer;
+    }
+    else {
+        console.log("individual");
+        return statusType === "type" ? typeRenderer : statusRenderer;
+    }
+}
+
+async function updateMapAndTable() {
+    let result;
+    let layer;
+    if (districtReport == "report") {
+        result = await loadIncidentReports({as_geojson: true, type: type, status: status, district_id: selectedDistrict});
+        layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
+    }
+    else {
+        const response = await fetch("http://127.0.0.1:8000/api/districts?include_counts=True");
+        const data = await response.json();
+        layer = geoJSONtoLayer(data, "districts_styled", "Districts", "polygon");
+    }
+    await layer.load();
+    const rendererResult = await getRenderer(layer);
+
+    layer.renderer = rendererResult;
     table.highlightIds.removeAll();
     table.layer = null;
 
@@ -301,6 +441,13 @@ statusTypeSwitch.addEventListener("click", async function(event) {
     await updateIncidentStats();
 });
 
+const districtReportSwitch = document.getElementById("district-report-switch");
+districtReportSwitch.addEventListener("click", async function(event) {
+    districtReport = districtReport === "district" ? "report" : "district";
+    await updateMapAndTable();
+    await updateIncidentStats();
+});
+
 // Update display when feature selected in map
 let highlightHandle;
 let incidentHighlight = null;
@@ -365,7 +512,8 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             // const type = selectedCardToTypeStatus(selectedCard);
             const incidentsInDistrict = await loadIncidentReports({type: type, status: status, district_id: currentSelectedDistrict, as_geojson: true});
             const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
-            incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
+            const rendererResult = await getRenderer();
+            incidentsInDistrictLayer.renderer = rendererResult;
 
             table.highlightIds.removeAll();
             table.layer = null;
@@ -391,7 +539,8 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
             const incidentsInDistrict = await loadIncidentReports({type: type, status: status, as_geojson: true});
             const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
-            incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
+            const rendererResult = await getRenderer(incidentsInDistrictLayer);
+            incidentsInDistrictLayer.renderer = rendererResult;
 
             table.highlightIds.removeAll();
             table.layer = null;
@@ -412,6 +561,9 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             table.layer = incidentsInDistrictLayer;
             table.hiddenFields = ["__OBJECTID"];
         }
+    }
+    else {
+        console.log("Clicked styled district");
     }
 });
 

@@ -211,8 +211,8 @@ def get_incident_stats(district_id: int = None):
     return db.get_incident_stats(district_id)
 
 @app.get("/api/districts")
-def get_districts():
-    return db.get_districts()
+def get_districts(include_counts: bool = False):
+    return db.get_districts(include_counts)
 
 # Get all incident reports inside a district
 # Get incident report type counts by district
