@@ -7,7 +7,9 @@ CREATE TABLE community_members (
     street_address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
-    tel_no TEXT NOT NULL 
+    tel_no TEXT NOT NULL, 
+    email TEXT NOT NULL
+        CONSTRAINT member_email_unique UNIQUE 
         CONSTRAINT member_valid_tel_no 
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'

@@ -192,6 +192,12 @@
       font-weight: 400;
     }
 
+    .form-section {
+      margin: 8px 0 -6px;
+      padding-top: 18px;
+      border-top: 1px solid var(--border);
+    }
+
     .form-actions {
       display: flex;
       flex-wrap: wrap;
@@ -315,15 +321,15 @@
 
       <ul class="role-list" aria-label="Who uses this app">
         <li>
-          <strong>Community members</strong>
+          <strong>Community Member</strong>
           <span>Report incidents and request help.</span>
         </li>
         <li>
-          <strong>Response coordinators</strong>
+          <strong>Response Coordinator</strong>
           <span>Review reports and dispatch responders.</span>
         </li>
         <li>
-          <strong>Volunteers</strong>
+          <strong>Volunteer</strong>
           <span>Offer resources where they’re needed.</span>
         </li>
       </ul>
@@ -396,10 +402,9 @@
             I am a…
             <select name="role" required>
               <option value="">Select your role</option>
-              <option value="Community Member">Community member</option>
+              <option value="Community Member">Community Member</option>
               <option value="Volunteer">Volunteer</option>
-              <option value="Responder">Responder</option>
-              <option value="Response Coordinator">Response coordinator</option>
+              <option value="Response Coordinator">Response Coordinator</option>
             </select>
           </label>
 
@@ -420,6 +425,43 @@
             Confirm password
             <input name="confirm_password" type="password" required minlength="8"
                    autocomplete="new-password" />
+          </label>
+
+          <p class="form-section eyebrow">CONTACT DETAILS</p>
+
+          <label>
+            Email
+            <input name="email" type="email" required maxlength="254"
+                   placeholder="name@example.com"
+                   autocomplete="email" autocapitalize="none" spellcheck="false" />
+          </label>
+
+          <label>
+            Street address
+            <input name="street_address" required maxlength="300"
+                   autocomplete="street-address" />
+          </label>
+
+          <div class="form-row">
+            <label>
+              City
+              <input name="city" required maxlength="100"
+                     autocomplete="address-level2" />
+            </label>
+            <label>
+              State
+              <input name="state" required maxlength="100"
+                     autocomplete="address-level1" />
+            </label>
+          </div>
+
+          <label>
+            Telephone number
+            <input name="tel_no" type="tel" required
+                   pattern="[0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4}"
+                   placeholder="540-555-0123"
+                   autocomplete="tel-national" aria-describedby="tel-hint" />
+            <span id="tel-hint" class="hint">10 digits, e.g. 5405550123 or 540-555-0123.</span>
           </label>
 
           <div class="form-actions">
@@ -469,6 +511,9 @@
     };
 
     const $ = (selector) => document.querySelector(selector);
+    const TEL_PATTERN = /^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$/;
+    // something@something.something, no spaces (stricter than the email CHECK in schema.sql)
+    const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     let busy = false;
 
     function goHome(role) {
@@ -566,12 +611,28 @@
 
       const form = event.currentTarget;
       const data = Object.fromEntries(new FormData(form));
-      for (const key of ["first_name", "last_name", "user_name"]) {
+      const textFields = [
+        "first_name", "last_name", "user_name", "email",
+        "street_address", "city", "state", "tel_no",
+      ];
+      for (const key of textFields) {
         data[key] = data[key].trim();
       }
+      data.email = data.email.toLowerCase();
 
-      if (!data.first_name || !data.last_name || !data.user_name || !data.role) {
+      if (!data.role || textFields.some((key) => !data[key])) {
         showMessage("Fill in every field to create your account.", true);
+        return;
+      }
+      if (!EMAIL_PATTERN.test(data.email)) {
+        showMessage("Enter a valid email address, like name@example.com.", true);
+        form.email.focus();
+        return;
+      }
+      // Same rule as the tel_no CHECK constraint in schema.sql
+      if (!TEL_PATTERN.test(data.tel_no)) {
+        showMessage("Enter a 10-digit phone number, like 5405550123 or 540-555-0123.", true);
+        form.tel_no.focus();
         return;
       }
       if (data.password.length < 8) {
@@ -594,18 +655,20 @@
           role: data.role,
           user_name: data.user_name,
           password: data.password,
+          email: data.email,
+          street_address: data.street_address,
+          city: data.city,
+          state: data.state,
+          tel_no: data.tel_no,
         });
 
         // /api/signup doesn't start a session, so log the new user in.
         const result = await login(data.user_name, data.password);
         goHome(result.role);
       } catch (error) {
-        showMessage(
-          error.status === 409
-            ? "That username is already taken. Try another."
-            : error.message || "Sign-up failed. Try again.",
-          true,
-        );
+        // Show the server's own message: a 409 can now mean the username
+        // OR the email is already in use.
+        showMessage(error.message || "Sign-up failed. Try again.", true);
         setBusy(form, false, "Create account");
       }
     });

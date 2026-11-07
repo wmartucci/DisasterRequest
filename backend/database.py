@@ -100,11 +100,9 @@ def run_change_returning(sql, params=None):
 
 
 # --------------------------------------------------------------------------------#
-# SPECIFIC DATABASE QUERY FUNCTIONS
+#                         DATABASE QUERY FUNCTIONS
 # --------------------------------------------------------------------------------#
-
-
-# --------- CREATE ---------
+#-----CREATE------------------#
 def create_community_member(first, last, street_address, city, state, tel_no):
     # create a new community member in the database. Returns the newly created row.
     return run_change_returning(
@@ -112,7 +110,6 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
         (first, last, street_address, city, state, tel_no),
     )
-
 
 def create_incident_report(
     member_id,
@@ -126,6 +123,7 @@ def create_incident_report(
     latitude,
     longitude,
 ):
+    # create a new incident report in the database. Returns the newly created row.
     return run_change_returning(
         "INSERT INTO incident_reports (member_id, type, address, city, state, image_url, description, status, location) "
         "VALUES (%s, %s, %s, %s, %s, %s, %s, %s, ST_SetSRID(ST_MakePoint(%s, %s), 4326)) RETURNING *;",
@@ -143,17 +141,23 @@ def create_incident_report(
         ),
     )
 
-
-# --------- READ ----------
-def get_volunteers():
-    # retrieves all volunteers from the database.
-    return run_query("SELECT * FROM volunteers ORDER BY volunteer_id;")
-
-
+#-----READ------------------#
 def get_community_members():
     # retrieves all community members from the database.
     return run_query("SELECT * FROM community_members ORDER BY member_id;")
 
+def search_community_members_by_name(first, last):                 
+    # searches for community members by first and last name (case-insensitive).
+    return run_query(
+        """SELECT *
+           FROM community_members
+           WHERE first_name ILIKE %s OR last_name ILIKE %s
+           ORDER BY last_name, first_name;""",
+        (f"%{first}%", f"%{last}%"),
+    )
+def get_volunteers():
+    # retrieves all volunteers from the database.
+    return run_query("SELECT * FROM volunteers ORDER BY volunteer_id;")
 
 def get_incident_reports():
     # retrieves all incident reports from the database.
@@ -180,15 +184,29 @@ def get_incident_reports():
 """)
 
 
-def search_community_members_by_name(first, last):
-    # searches for community members by first and last name (case-insensitive).
-    return run_query(
-        """SELECT *
-           FROM community_members
-           WHERE first_name ILIKE %s OR last_name ILIKE %s
-           ORDER BY last_name, first_name;""",
-        (f"%{first}%", f"%{last}%"),
+#-----UPDATE------------------#
+def update_incident_report_status(report_id, new_status):          
+    # updates the status of an incident report by report_id.
+    return run_change(
+        "UPDATE incident_reports SET status = %s WHERE report_id = %s;",
+        (new_status, report_id),
     )
+
+
+#-----DELETE------------------#
+def delete_community_member(member_id):
+    # deletes a community member by member_id.
+    return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
+
+def delete_incident_report(report_id):
+    # deletes an incident report by report_id.
+    return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
+
+
+#-----response coordinators-DELETE------------------#
+
+
+
 
 
 def search_incident_reports_by_id(report_id):
@@ -197,36 +215,52 @@ def search_incident_reports_by_id(report_id):
         "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
     )
 
+#
 
-# --------- UPDATE ----------
-def update_incident_report_status(report_id, new_status):
-    # updates the status of an incident report by report_id.
-    return run_change(
-        "UPDATE incident_reports SET status = %s WHERE report_id = %s;",
-        (new_status, report_id),
-    )
-
-
-# --------- DELETE ----------
-def delete_community_member(member_id):
-    # deletes a community member by member_id.
-    return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
-
-
-def delete_incident_report(report_id):
-    # deletes an incident report by report_id.
-    return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
 
 # ---------- Authentication -------------
-def create_user(first_name, last_name, role, username, password_hash):
+def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email):
+    conn = get_connection()
     try:
-        new_user_result = run_change_returning("INSERT INTO users(username, password_hash, first_name, last_name, role) VALUES (%s, %s, %s, %s, %s) RETURNING *;", 
-                                (username, password_hash, first_name, last_name, role))
-        return new_user_result
+        with conn.cursor() as cur:
+            # 1. Create the login account
+            cur.execute(
+                "INSERT INTO users (username, password_hash, first_name, last_name, role) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
+                (username, password_hash, first_name, last_name, role),
+            )
+            columns = [desc[0] for desc in cur.description] 
+            rows = cur.fetchall()
+
+            # 2. Create the matching row for the user's role
+            if role == "Community Member":
+                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no) "
+                        "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, street_address, city, state, tel_no, email),
+                    )
+            # 2.1 Create the matching row for the user's role
+            if role == "Response Coordinator":
+                print("COORDINATOR INSERT ->", first_name, last_name, tel_no, email)
+                cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email) "
+                        "VALUES (%s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, tel_no, email),
+                    )
+
+        conn.commit()  # saves BOTH rows at once
+        return columns, rows
+
     except psycopg2.errors.UniqueViolation as e:
+        conn.rollback()
         raise DuplicateValueError(f"Username {username} already exists") from e
     except psycopg2.errors.CheckViolation as e:
-        raise InvalidTypeError(f"Role type '{role}' is invalid") from e
+        conn.rollback()
+        # Name the rule that failed (e.g. member_valid_tel_no), not just "role"
+        raise InvalidTypeError(f"Value breaks the rule '{e.diag.constraint_name}'") from e
+    except Exception:
+        conn.rollback()  # undo the users row too
+        raise
+    finally:
+        conn.close()
 
 def get_password_hash(user_name):
     result = run_query("SELECT user_id, password_hash, role FROM users WHERE username = %s;", (user_name,))

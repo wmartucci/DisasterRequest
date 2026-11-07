@@ -1,7 +1,7 @@
 from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
-from pydantic import BaseModel
+from pydantic import BaseModel, Field
 from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -59,11 +59,15 @@ class User(BaseModel):
     role: str
     user_name: str
     password: str
+    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+    street_address: str
+    city: str
+    state: str
+    tel_no: str = Field(pattern=r"^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$")
 
-class UserLogin(User):
-    first_name: str | None = None
-    last_name: str | None = None
-    role: str | None = None
+class UserLogin(BaseModel):
+    user_name: str
+    password: str
 
 # --------- Dependencies -------------
 def get_current_user(request: Request):
@@ -164,8 +168,18 @@ async def database_configuration_error(_: Request, exc: db.InvalidTypeError):
 @app.post("/api/signup")
 def create_user(user_details: User):
     hashed_password = password_hasher.hash(user_details.password)
-    columns, rows = db.create_user(user_details.first_name, user_details.last_name, 
-                                   user_details.role, user_details.user_name, hashed_password)
+    columns, rows = db.create_user(
+        first_name=user_details.first_name,
+        last_name=user_details.last_name,
+        role=user_details.role,
+        username=user_details.user_name,
+        password_hash=hashed_password,
+        street_address=user_details.street_address,
+        city=user_details.city,
+        state=user_details.state,
+        tel_no=user_details.tel_no,
+        email=user_details.email,
+    )
     new_user_details = dict(zip(columns, rows[0]))
     del new_user_details["password_hash"]
     # Add into corresponding role table

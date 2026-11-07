@@ -1,27 +1,44 @@
 const API_BASE_URL = "http://localhost:8000";
 
 async function requestApi(path, options = {}) {
+    const { headers = {}, ...rest } = options;
+
     const response = await fetch(`${API_BASE_URL}${path}`, {
-        headers: { Accept: "application/json", ...options.headers },
-        ...options,
+        ...rest,
+        // Send and receive the session cookie set by SessionMiddleware.
+        // Required because the frontend (port 5500) and API (port 8000)
+        // are different origins.
+        credentials: "include",
+        headers: { Accept: "application/json", ...headers },
     });
 
     if (!response.ok) {
         let detail = `API request failed (${response.status})`;
         try {
-            detail = (await response.json()).detail || detail;
+            const body = await response.json();
+            if (Array.isArray(body.detail)) {
+                // FastAPI's own validation errors (422) arrive as a list, e.g.
+                // [{loc: ["body", "email"], msg: "Field required"}].
+                // Turn them into "email: Field required".
+                detail = body.detail
+                    .map((err) => `${err.loc?.at(-1) ?? "request"}: ${err.msg}`)
+                    .join("; ");
+            } else if (body.detail) {
+                detail = body.detail;
+            }
         } catch {
             // Keep the status-based message when the server did not return JSON.
         }
-        throw new Error(detail);
+        const error = new Error(detail);
+        error.status = response.status;
+        throw error;
     }
 
     // 204 No Content (e.g. /api/logout) has no body to parse.
     if (response.status === 204) return null;
-    
     return response.json();
 }
- 
+
 // --------- AUTH functions ----------
 export function login(user_name, password) {
     return requestApi("/api/login", {
@@ -30,19 +47,41 @@ export function login(user_name, password) {
         body: JSON.stringify({ user_name, password }),
     });
 }
- 
-export function signup({ first_name, last_name, role, user_name, password }) {
+
+export function signup({
+    first_name,
+    last_name,
+    role,
+    user_name,
+    password,
+    email,
+    street_address,
+    city,
+    state,
+    tel_no,
+}) {
     return requestApi("/api/signup", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ first_name, last_name, role, user_name, password }),
+        body: JSON.stringify({
+            first_name,
+            last_name,
+            role,
+            user_name,
+            password,
+            email,
+            street_address,
+            city,
+            state,
+            tel_no,
+        }),
     });
 }
- 
+
 export function logout() {
     return requestApi("/api/logout", { method: "POST" });
 }
- 
+
 export function getCurrentUser() {
     return requestApi("/api/me");
 }
