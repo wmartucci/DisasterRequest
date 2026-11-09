@@ -6,6 +6,7 @@ from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
+from . import member_portal 
 import os
 
 load_dotenv()
@@ -35,6 +36,8 @@ app.add_middleware(
     same_site="lax",
     https_only=False
 )
+
+app.include_router(member_portal.router)  
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):
