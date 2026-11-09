@@ -99,7 +99,8 @@
       <button data-screen="report">Report an incident</button>
       <button data-screen="board">Community board</button>
 
-      <div id="account" class="actor-bar" hidden>
+      <!-- Always visible, so people can sign out even if a page request fails. -->
+      <div id="account" class="actor-bar">
         <span id="account-name"></span>
         <button id="logout" type="button" class="secondary-button">Log out</button>
       </div>
@@ -253,6 +254,10 @@
     <p>Community member view</p>
   </footer>
   <script type="module">
+// Log out and "who am I" come from the shared api.js, so every page uses the
+// same /api/logout and /api/me calls.
+import { logout, getCurrentUser } from "./api.js";
+
 // API calls for the Community Member and Response Coordinator pages.
 // Reports are listed / updated / deleted with the functions in ../api.js;
 // this file holds the calls that are new. The server knows who is asking from
@@ -327,7 +332,6 @@ const updateIncidentReportStatus = (id, newStatus) =>
   });
 const deleteIncidentReport = (id) =>
   request(`/api/incident-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
-const logout = () => request("/api/logout", { method: "POST" });
 
 // Small helpers shared by member.js and coordinator.js.
 
@@ -415,6 +419,35 @@ function confirmDialog({ title, text, yes }) {
 }
 
 /*
+ * LOG OUT
+ *
+ * Wired up as soon as the page loads (not after the profile loads), so the
+ * button works even when other requests on the page fail.
+ * POST /api/logout clears the session cookie and returns 204 No Content.
+ */
+$("#logout").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = "Logging out…";
+  try {
+    await logout();
+    window.location.replace("login.html");
+  } catch (error) {
+    // Stay on the page: the session is still active, so don't pretend it ended.
+    button.disabled = false;
+    button.textContent = "Log out";
+    message(`Couldn’t log out: ${readableError(error)}`, true);
+  }
+});
+
+// Show who is signed in next to the button (GET /api/me).
+getCurrentUser()
+  .then((user) => {
+    if (user) $("#account-name").textContent = `${user.first_name} ${user.last_name}`;
+  })
+  .catch(() => { /* not signed in: startSession below sends them to login */ });
+
+/*
  * SIGN-IN CHECK
  *
  * Asks the server who is signed in. Sends signed-out people to login.html and
@@ -437,11 +470,6 @@ async function startSession({ role, otherPage }) {
   }
 
   $("#account-name").textContent = `${profile.first_name} ${profile.last_name}`;
-  $("#account").hidden = false;
-  $("#logout").addEventListener("click", async () => {
-    try { await logout(); } catch { /* leave anyway */ }
-    window.location.replace("login.html");
-  });
 
   if (!profile.has_profile) await completeProfile(role);
   return profile;
