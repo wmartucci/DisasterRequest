@@ -6,4 +6,4 @@ __pycache__/
 *.py[cod]
 .DS_Store
 .vscode
-.claude/settings.local.json
+.claude
