@@ -8,12 +8,14 @@ CREATE TABLE community_members (
     city TEXT NOT NULL,
     state TEXT NOT NULL,
     tel_no TEXT NOT NULL, 
-    email TEXT NOT NULL
-        CONSTRAINT member_email_unique UNIQUE 
         CONSTRAINT member_valid_tel_no 
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
         )
+    email TEXT NOT NULL,
+        CONSTRAINT member_email_unique UNIQUE 
+    user_id INTEGER UNIQUE
+        REFERENCES users(user_id)
 );
 
 CREATE TABLE response_coordinators (
