@@ -44,6 +44,59 @@ async function loadIncidentReportStats({district_id = null} = {}) {
     return data;
 }
 
+async function loadList(layer) {
+    const layerFeatures = await layer.queryFeatures({
+        where: "1=1",
+        outFields: ["*"],
+        returnGeometry: true
+    });
+
+    const list = document.getElementById("list-group");
+    list.replaceChildren();
+
+    layerFeatures.features.forEach(feature => {
+        console.log(feature.attributes);
+        const item = document.createElement("calcite-list-item");
+        item.label = feature.attributes.type + " | " + feature.attributes.status;
+        item.description = feature.attributes.address;
+        item.value = feature;
+
+        const content = document.createElement("div");
+        content.slot = "content";
+        content.innerHTML = `
+            <strong>${feature.attributes.type}</strong> | ${feature.attributes.status} <br>
+            <i>${feature.attributes.address}, ${feature.attributes.city}, ${feature.attributes.state}</i>
+        `;
+        item.appendChild(content);
+        const icon = document.createElement("calcite-icon");
+        switch (feature.attributes.type) {
+            case "Fire":
+                icon.icon = "fire-index";
+                break;
+            case "Power":
+                icon.icon = "battery-charging";
+                break;
+            case "Fallen Tree":
+                icon.icon = "tree";
+                break;
+            case "Flood":
+                icon.icon = "water-drop";
+                break;
+            default:
+                icon.icon = "exclamation-mark-triangle";
+                break;
+        }
+        icon.slot = "content-start";
+        const timestamp = document.createElement("span");
+        timestamp.slot = "content-end";
+        const time = new Date(feature.attributes.report_timestamp);
+        timestamp.textContent = time.toLocaleString();
+        item.appendChild(icon);
+        item.appendChild(timestamp);
+        list.appendChild(item);
+    });
+}
+
 function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
     const blob = new Blob([JSON.stringify(geojson)], {
         type: "application/json"
@@ -179,21 +232,9 @@ const statusRenderer = {
     ]
 };
 await layer.load();
-layer.renderer = typeRenderer;
+await loadList(layer);layer.renderer = typeRenderer;
 mapElement.map.add(layer);
 var activeLayer = layer;
-
-// Set table properties
-const table = document.querySelector("arcgis-feature-table");
-table.layer = layer;
-table.multipleSelectionDisabled = true;
-table.hideSelectionColumn = true;
-table.hiddenFields = ["__OBJECTID"];
-table.addEventListener("arcgisCellClick", (event) => {
-    const id = event.detail.objectId;
-    table.highlightIds.removeAll();
-    table.highlightIds.add(id);
-});
 
 let statusType = "type";
 let type = null;
@@ -216,19 +257,6 @@ function selectedCardToTypeStatus(selectedCard) {
             : selectedCard.id === "card-4" ? "Resolved"
             : null;
 }
-
-// function getColorScheme(start, end, count) {
-//     const startColor = new Color(start);
-//     const endColor = new Color(end);
-
-//     return Array.from({length: count}, (_, i) => 
-//         Color.blendColors(
-//             startColor,
-//             endColor,
-//             count === 1 ? 0 : i / (count - 1)
-//         ).toHex()
-//     );
-// }
 
 function getColorScheme(label) {
     switch (label) {
@@ -338,8 +366,8 @@ async function updateMapAndTable() {
     const rendererResult = await getRenderer(layer);
 
     layer.renderer = rendererResult;
-    table.highlightIds.removeAll();
-    table.layer = null;
+    // table.highlightIds.removeAll();
+    // table.layer = null;
 
     mapElement.map.remove(activeLayer);
     mapElement.map.add(layer);
@@ -348,8 +376,11 @@ async function updateMapAndTable() {
     
     await layer.load();
 
-    table.layer = layer;
-    table.hiddenFields = ["__OBJECTID"];    
+    console.log("Updated map");
+    // table.layer = layer;
+    // table.hiddenFields = ["__OBJECTID"];    
+
+    await loadList(layer);
 }
 
 // Card event listener, fetch new GeoJSON based on type clicked
@@ -435,9 +466,6 @@ districtReportSwitch.addEventListener("click", async function(event) {
     districtReport = districtReport === "district" ? "report" : "district";
     incidentHighlight?.remove();
     incidentHighlight = null;
-    // if (districtReport === "report") {
-    //     selectedDistrict = null;
-    // }
     await updateMapAndTable();
     await updateIncidentStats();
 });
@@ -471,10 +499,14 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         incidentHighlight?.remove();
         incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
         const objectId = result.graphic.getObjectId();
-        // table.highlightIds.removeAll();
-        // table.highlightIds.add(objectId);
 
-        await table.scrollToRow(objectId);
+        const list = document.getElementById("list-group");
+        const listItem = [...list.querySelectorAll("calcite-list-item")].find(item => item.value?.attributes?.report_id === result.graphic.attributes.report_id);
+        if (listItem) {
+            listItem.selected = true;
+            listItem.scrollIntoView({behavior: "smooth",block: "center"});
+        }
+
         const reportDetails = document.getElementById("report-details-text");
         const reportAttributes = result.graphic.attributes;
         const text = `<strong>Type</strong>: ${reportAttributes.type}
@@ -509,9 +541,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
             incidentsInDistrictLayer.renderer = statusType === "type" ? typeRenderer : statusRenderer;
 
-            table.highlightIds.removeAll();
-            table.layer = null;
-
             incidentHighlight?.remove();
             incidentHighlight = null;
 
@@ -523,9 +552,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             
             await incidentsInDistrictLayer.load();
             await updateIncidentStats(currentSelectedDistrict);
-
-            table.layer = incidentsInDistrictLayer;
-            table.hiddenFields = ["__OBJECTID"];
             selectedDistrict = currentSelectedDistrict;
         }
         // Remove highlight from district if clicked again, reload all incidents
@@ -537,9 +563,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             const rendererResult = await getRenderer(incidentsInDistrictLayer);
             incidentsInDistrictLayer.renderer = rendererResult;
 
-            table.highlightIds.removeAll();
-            table.layer = null;
-
             mapElement.map.remove(activeLayer);
             mapElement.map.add(incidentsInDistrictLayer);
 
@@ -548,9 +571,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             
             await incidentsInDistrictLayer.load();
             await updateIncidentStats();
-
-            table.layer = incidentsInDistrictLayer;
-            table.hiddenFields = ["__OBJECTID"];
         }
     }
     // Highlight selected district on choropleth map
@@ -568,7 +588,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             districtHighlight?.remove();
             districtHighlight = layerView.highlight(result.graphic, {"name": "district"});
 
-            table.highlightIds.removeAll();
             incidentHighlight?.remove();
             incidentHighlight = null;
 
@@ -578,11 +597,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         else {
             districtHighlight?.remove();
             selectedDistrict = null;
-
-            table.highlightIds.removeAll();
-            table.layer = null;
-
-            table.hiddenFields = ["__OBJECTID"];
         }
     }
 });
@@ -614,3 +628,29 @@ dialogDeleteButton.addEventListener("click", function(event) {
     const deleteDialog = document.getElementById("delete-dialog");
     deleteDialog.open = false;
 })
+
+const list = document.getElementById("list-group");
+list.addEventListener("calciteListItemSelect", async function(event) {
+    const feature = event.target.value;
+    console.log("Selected");
+    console.log(feature);
+
+    const layerView = await mapView.whenLayerView(activeLayer);
+    incidentHighlight?.remove();
+    incidentHighlight = layerView.highlight(feature, {"name": "incident"});
+    console.log(incidentHighlight);
+
+    const reportDetails = document.getElementById("report-details-text");
+    const reportAttributes = feature.attributes;
+    const text = `<strong>Type</strong>: ${reportAttributes.type}
+
+    <strong>Status</strong>: ${reportAttributes.status}
+
+    <strong>Description</strong>: ${reportAttributes.description}`
+    reportDetails.innerHTML = text;
+
+    const image = document.getElementById("report-details-image");
+    image.src = reportAttributes.image_url;
+    const deleteReportID = document.getElementById("delete-report-id");
+    deleteReportID.value = String(reportAttributes.report_id);
+});
