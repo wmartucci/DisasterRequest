@@ -79,12 +79,23 @@
     --calcite-panel-border-color: #506070;
 }
 
-#table {
+#list {
     grid-column: 2;
     grid-row: 1/8;
     min-height: 0;
     height: 100%;
-    overflow: hidden;
+    max-height: 400px;
+    overflow-y: auto;
+}
+
+#list-heading {
+    position: sticky;
+    top: 0;
+    z-index: 10;
+    background-color: #004B72;
+    color: white;
+    padding: 12px;
+    margin: 0;
 }
 
 #report-details {

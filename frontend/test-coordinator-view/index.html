@@ -39,14 +39,19 @@
                 <arcgis-map id="map" basemap="topo-vector" center="-82.54947363304201, 35.580068654542416" zoom=11>
                 </arcgis-map>
             </calcite-panel>
-            <arcgis-feature-table reference-element="#map" id="table"></arcgis-feature-table>
+            <!-- <arcgis-feature-table reference-element="#map" id="table"></arcgis-feature-table> -->
+            <div id="list">
+                <h3 id="list-heading">Incidents</h3>
+                <calcite-list label="Park features" id="list-group" selection-mode="single" selection-appearance="highlight">
+                </calcite-list>
+            </div>
             <div id="report-details">
                 <h3 id="report-details-heading">Report Details</h3>
                 <calcite-card id="report-details-card" heading="Report Details">
                     <div id="report-details-grid">
                         <div id="report-details-text-div">
                             <div id="report-details-text">Select a report</div>
-                            <button id="delete-report-button">Delete Selected Report</button>
+                            <calcite-button id="delete-report-button">Delete Selected Report</calcite-button>
                         </div>
                         <div id="report-details-image-div">
                             <img id="report-details-image" src="" alt="No image available">
