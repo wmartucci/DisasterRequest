@@ -7,7 +7,7 @@ from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
-from members_portal import members_gateway as mdb
+from .members_portal import members_gateway as mdb
 import os
 
 load_dotenv()

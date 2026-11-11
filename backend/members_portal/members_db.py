@@ -61,7 +61,8 @@ def all_posts(viewer_member_id):
         """SELECT p.post_id, p.member_id, p.post_title, p.post_content,
                   p.post_timestamp, p.media,
                   m.first_name, m.last_name,
-                  (p.member_id = %s) AS is_mine
+                  (p.member_id = %s) AS is_mine,
+                (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comment_count
            FROM posts p
            JOIN community_members m ON m.member_id = p.member_id
            ORDER BY p.post_timestamp DESC;""",
@@ -86,10 +87,15 @@ def remove_post(post_id):
     return db.run_change("DELETE FROM posts WHERE post_id = %s;", (post_id,))
 
 def get_post_comments(post_id):
-    return db.run_change_returning("""
-        SELECT * FROM comments 
-        WHERE post_id=%s""",
-        (post_id)
+    return db.run_query(
+        """SELECT c.comment_id, c.post_id, c.member_id, c.content,
+                  c.comment_timestamp,
+                  m.first_name, m.last_name
+           FROM comments c
+           JOIN community_members m ON m.member_id = c.member_id
+           WHERE c.post_id = %s
+           ORDER BY c.comment_timestamp;""",
+        (post_id,),
     )
     
 def add_comment(post_id, content, member_id):

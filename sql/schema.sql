@@ -87,7 +87,7 @@ CREATE TABLE comments (
     post_id INTEGER NOT NULL
         CONSTRAINT post_comment_fk
         REFERENCES posts(post_id)
-        ON DELETE SET NULL,
+        ON DELETE CASCADE,
     member_id INTEGER NOT NULL
         CONSTRAINT member_comment_fk
         REFERENCES community_members(member_id),

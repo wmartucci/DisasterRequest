@@ -157,11 +157,14 @@ def delete_post(post_id: int, member=Depends(member_id)) -> dict:
     return {"post_id": post_id, "deleted": True}
 
 @router.get("/api/posts/{post_id}/comments")
-def get_post_comments(post_id: int) -> list[dict]:
-    columns, rows = mdb.get_post_comments(post_id)
-    return [dict(zip(columns, row)) for row in rows]
+def get_post_comments(post_id: int, user=Depends(logged_in)) -> list[dict]:
+    # Any logged-in user can view comments on a post.
+    return mdb.get_post_comments(post_id)
 
 @router.post("/api/posts/{post_id}/comments", status_code=201)
 def add_post_comment(post_id: int, comment: NewComment, member=Depends(member_id)) -> dict:
+    # Any logged-in user can add a comment to a post.
+    if mdb.post_owner(post_id) is None:
+        raise HTTPException(404, "Post not found")
     columns, rows = mdb.add_comment(post_id, comment.content.strip(), member)
     return dict(zip(columns, rows[0]))
