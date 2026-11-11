@@ -144,6 +144,21 @@ function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
     return layer;
 }
 
+const user = document.getElementById("nav-user");
+const userDetailsResponse = await fetch("/api/me");
+const userDetails = await userDetailsResponse.json();
+user.username = userDetails.first_name + " " + userDetails.last_name;
+
+const logout = document.getElementById("logout");
+logout.addEventListener("click", async function(event) {
+    // Implement logout functionality here
+    console.log("Logout clicked");
+    const response = await fetch("/api/logout", {method: 'POST'});
+    if (response.redirected) {
+        window.location.replace(response.url);
+    }
+});
+
 const mapElement = document.querySelector("arcgis-map");
 await mapElement.viewOnReady();
 
@@ -263,7 +278,8 @@ const statusRenderer = {
     ]
 };
 await layer.load();
-await loadList(layer);layer.renderer = typeRenderer;
+await loadList(layer);
+layer.renderer = typeRenderer;
 mapElement.map.add(layer);
 var activeLayer = layer;
 
@@ -678,3 +694,41 @@ list.addEventListener("calciteListItemSelect", async function(event) {
     const deleteReportID = document.getElementById("delete-report-id");
     deleteReportID.value = String(reportAttributes.report_id);
 });
+
+
+
+const helpRequestsList = document.getElementById("requests-list-group");
+const helpRequestsResponse = await fetch("/api/help-requests");
+const helpRequests = await helpRequestsResponse.json();
+helpRequests.forEach(request => {
+    const item = document.createElement("calcite-list-item");
+    item.label = request.status;
+    item.description = request.timestamp;
+    item.value = request;
+    const icon = document.createElement("calcite-icon");
+    icon.icon = "star";
+    icon.slot = "content-start";
+    item.appendChild(icon);
+    helpRequestsList.appendChild(item);
+});
+
+const menuItems = document.querySelectorAll("calcite-menu-item[data-section]");
+const sections = document.querySelectorAll(".dashboard-section");
+
+menuItems.forEach(item => {
+    item.addEventListener('click', () => {
+        const target = item.dataset.section;
+        sections.forEach(section => {
+            section.hidden = section.id !== target;
+        });
+
+        menuItems.forEach(menuItem => {
+            menuItem.active = menuItem === item;
+        });
+    });
+});
+
+// const helpRequestsMenuItem = document.getElementById("help-requests-menu-item");
+// helpRequestsMenuItem.addEventListener("click", function(event) {
+//     console.log("Clicked");
+// });
