@@ -44,6 +44,8 @@ async function loadIncidentReportStats({district_id = null} = {}) {
     return data;
 }
 
+let districtReport = "report";
+
 async function loadList(layer) {
     const layerFeatures = await layer.queryFeatures({
         where: "1=1",
@@ -54,47 +56,76 @@ async function loadList(layer) {
     const list = document.getElementById("list-group");
     list.replaceChildren();
 
-    layerFeatures.features.forEach(feature => {
-        console.log(feature.attributes);
-        const item = document.createElement("calcite-list-item");
-        item.label = feature.attributes.type + " | " + feature.attributes.status;
-        item.description = feature.attributes.address;
-        item.value = feature;
+    const heading = document.getElementById("list-heading");
 
-        const content = document.createElement("div");
-        content.slot = "content";
-        content.innerHTML = `
-            <strong>${feature.attributes.type}</strong> | ${feature.attributes.status} <br>
-            <i>${feature.attributes.address}, ${feature.attributes.city}, ${feature.attributes.state}</i>
-        `;
-        item.appendChild(content);
-        const icon = document.createElement("calcite-icon");
-        switch (feature.attributes.type) {
-            case "Fire":
-                icon.icon = "fire-index";
-                break;
-            case "Power":
-                icon.icon = "battery-charging";
-                break;
-            case "Fallen Tree":
-                icon.icon = "tree";
-                break;
-            case "Flood":
-                icon.icon = "water-drop";
-                break;
-            default:
-                icon.icon = "exclamation-mark-triangle";
-                break;
-        }
-        icon.slot = "content-start";
-        const timestamp = document.createElement("span");
-        timestamp.slot = "content-end";
-        const time = new Date(feature.attributes.report_timestamp);
-        timestamp.textContent = time.toLocaleString();
-        item.appendChild(icon);
-        item.appendChild(timestamp);
-        list.appendChild(item);
-    });
+
+    if (districtReport === "report") {
+        heading.textContent = "Incidents";
+        layerFeatures.features.forEach(feature => {
+            const item = document.createElement("calcite-list-item");
+            item.label = feature.attributes.type + " | " + feature.attributes.status;
+            item.description = feature.attributes.address;
+            item.value = feature;
+
+            const content = document.createElement("div");
+            content.slot = "content";
+            content.innerHTML = `
+                <strong>${feature.attributes.type}</strong> | ${feature.attributes.status} <br>
+                <i>${feature.attributes.address}, ${feature.attributes.city}, ${feature.attributes.state}</i>
+            `;
+            item.appendChild(content);
+            const icon = document.createElement("calcite-icon");
+            switch (feature.attributes.type) {
+                case "Fire":
+                    icon.icon = "fire-index";
+                    break;
+                case "Power":
+                    icon.icon = "battery-charging";
+                    break;
+                case "Fallen Tree":
+                    icon.icon = "tree";
+                    break;
+                case "Flood":
+                    icon.icon = "water-drop";
+                    break;
+                default:
+                    icon.icon = "exclamation-mark-triangle";
+                    break;
+            }
+            icon.slot = "content-start";
+            const timestamp = document.createElement("span");
+            timestamp.slot = "content-end";
+            const time = new Date(feature.attributes.report_timestamp);
+            timestamp.textContent = time.toLocaleString();
+            item.appendChild(icon);
+            item.appendChild(timestamp);
+            list.appendChild(item);
+        });
+    }
+    else {
+        heading.textContent = "Districts";
+        layerFeatures.features.forEach(feature => {
+            const item = document.createElement("calcite-list-item");
+            console.log(feature.attributes);
+            item.label = feature.attributes.district_name;
+            item.description = feature.attributes.address;
+            item.value = feature;
+
+            const content = document.createElement("div");
+            content.slot = "content";
+            content.innerHTML = `
+                <strong>${feature.attributes.district_name}</strong> | Total Incidents: ${feature.attributes.total_incidents} <br>
+                <i>Fires: ${feature.attributes.fire_count} | Power Outages: ${feature.attributes.power_count} | Fallen Trees: ${feature.attributes.tree_count} | Floods: ${feature.attributes.flood_count}</i>
+            `;
+            item.appendChild(content);
+            const icon = document.createElement("calcite-icon");
+            icon.icon = "number-of-territories";
+            icon.slot = "content-start";
+            item.appendChild(icon);
+            list.appendChild(item);
+        });
+    }
+    
 }
 
 function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
@@ -239,7 +270,6 @@ var activeLayer = layer;
 let statusType = "type";
 let type = null;
 let status = null;
-let districtReport = "report";
 
 // Retrieve type or status corresponding with selected card
 function selectedCardToTypeStatus(selectedCard) {
@@ -366,8 +396,6 @@ async function updateMapAndTable() {
     const rendererResult = await getRenderer(layer);
 
     layer.renderer = rendererResult;
-    // table.highlightIds.removeAll();
-    // table.layer = null;
 
     mapElement.map.remove(activeLayer);
     mapElement.map.add(layer);
@@ -375,10 +403,6 @@ async function updateMapAndTable() {
     activeLayer = layer;
     
     await layer.load();
-
-    console.log("Updated map");
-    // table.layer = layer;
-    // table.hiddenFields = ["__OBJECTID"];    
 
     await loadList(layer);
 }
