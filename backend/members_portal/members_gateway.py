@@ -3,7 +3,7 @@ from pydantic import BaseModel, Field
 
 from .. import database as db
 
-from .. import members_db as mdb
+from . import members_db as mdb
 
 router = APIRouter()
 
@@ -56,6 +56,10 @@ class NewReport(BaseModel):
 class NewPost(BaseModel):
     post_title: str = Field(min_length=1, max_length=50)
     post_content: str = Field(min_length=1, max_length=3000)
+
+
+class NewComment(BaseModel):
+    content: str = Field(min_length=1, max_length=1000)
 
 
 
@@ -151,3 +155,13 @@ def delete_post(post_id: int, member=Depends(member_id)) -> dict:
         raise HTTPException(403, "You can only delete your own posts")
     mdb.remove_post(post_id)
     return {"post_id": post_id, "deleted": True}
+
+@router.get("/api/posts/{post_id}/comments")
+def get_post_comments(post_id: int) -> list[dict]:
+    columns, rows = mdb.get_post_comments(post_id)
+    return [dict(zip(columns, row)) for row in rows]
+
+@router.post("/api/posts/{post_id}/comments", status_code=201)
+def add_post_comment(post_id: int, comment: NewComment, member=Depends(member_id)) -> dict:
+    columns, rows = mdb.add_comment(post_id, comment.content.strip(), member)
+    return dict(zip(columns, rows[0]))

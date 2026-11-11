@@ -82,6 +82,19 @@ CREATE TABLE posts (
     media VARCHAR(70)
 );
 
+CREATE TABLE comments (
+    comment_id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL
+        CONSTRAINT post_comment_fk
+        REFERENCES posts(post_id)
+        ON DELETE SET NULL,
+    member_id INTEGER NOT NULL
+        CONSTRAINT member_comment_fk
+        REFERENCES community_members(member_id),
+    content TEXT NOT NULL,
+    comment_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
+);
+
 CREATE TABLE response_units (
     unit_id SERIAL PRIMARY KEY,
     unit_name TEXT NOT NULL,

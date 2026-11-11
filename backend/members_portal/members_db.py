@@ -85,3 +85,16 @@ def post_owner(post_id):
 def remove_post(post_id):
     return db.run_change("DELETE FROM posts WHERE post_id = %s;", (post_id,))
 
+def get_post_comments(post_id):
+    return db.run_change_returning("""
+        SELECT * FROM comments 
+        WHERE post_id=%s""",
+        (post_id)
+    )
+    
+def add_comment(post_id, content, member_id):
+    return db.run_change_returning("""
+        INSERT INTO comments (post_id, content, member_id)
+        VALUES (%s, %s, %s) RETURNING *;""",
+        (post_id, content, member_id)
+    )
