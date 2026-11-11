@@ -1,36 +1,38 @@
 from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, Field
-from typing import Literal
 from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
-from .members_portal import members_gateway as mdb
+from . import member_portal 
 import os
 
 load_dotenv()
 
 
-app = FastAPI(title="Disaster Request API", version="1.0.0") # Initialize the FastAPI application
-password_hasher = PasswordHash.recommended() # Initialize the recommended password hasher
+app = FastAPI(title="Disaster Request API", version="1.0.0")
+app.mount("/assets", StaticFiles(directory="frontend"), name="assets")
+password_hasher = PasswordHash.recommended()
 
-app.add_middleware(  # Add CORS middleware to allow requests from the frontend
+app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5500",
         "http://127.0.0.1:5500",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# 
-app.add_middleware(  # Add session middleware for user authentication
+app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="session",
@@ -39,7 +41,7 @@ app.add_middleware(  # Add session middleware for user authentication
     https_only=False
 )
 
-app.include_router(mdb.router)  
+app.include_router(member_portal.router)  
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):
@@ -74,25 +76,9 @@ class UserLogin(BaseModel):
     user_name: str
     password: str
 
-# What a signed-in community member sends from the "Report an incident" tab.
-# There is no member_id or status here on purpose: the server takes member_id
-# from the login session (so nobody can file a report as someone else) and
-# every new report starts as "Pending Assistance".
-
-class MyReport(BaseModel):
-
-    type: Literal["Fallen Tree", "Flood", "Fire", "Power"]
-    address: str = Field(min_length=1, max_length=300)
-    city: str = Field(min_length=1, max_length=100)
-    state: str = Field(min_length=1, max_length=100)
-    image_url: str | None = None
-    description: str = Field(min_length=1, max_length=5000)
-    latitude: float = Field(ge=-90, le=90)
-    longitude: float = Field(ge=-180, le=180)
-
-
 # --------- Dependencies -------------
 def get_current_user(request: Request):
+    print(request.session)
     user_id = request.session.get("user_id")
     role = request.session.get("role")
 
@@ -114,38 +100,12 @@ def require_roles(*allowed_roles):
         return user
     return check_role
 
-
-def current_member_id(user = Depends(require_roles("Community Member"))) -> int:
-    # Turns the signed-in account (users.user_id) into its community_members.member_id.
-    member_id = db.get_member_id(user["user_id"])
-    if member_id is None:
-        raise HTTPException(
-            status_code=403,
-            detail="This account isn't linked to a community member profile."
-        )
-    return member_id
-
-
-
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
 def create_incident_report(report: IncidentReport) -> dict:
     columns, rows = db.create_incident_report(**report.model_dump())
     return dict(zip(columns, rows[0]))
 
-# Signed-in community member files a report for themselves.
-
-@app.post("/api/my-reports", status_code=201)
-
-def create_my_report(report: MyReport, member_id: int = Depends(current_member_id)) -> dict:
-
-    columns, rows = db.create_incident_report(
-        member_id=member_id,
-        status="Pending Assistance",
-        **report.model_dump(),
-    )
-
-    return dict(zip(columns, rows[0]))
 
 # --------- READ endpoints ----------
 @app.get("/api/volunteers")
@@ -168,11 +128,6 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
     if report_id is None:
         return db.get_incident_reports()
     return db.search_incident_reports_by_id(report_id)
-
-# Signed-in community member's own reports ("My reports" tab).
-@app.get("/api/my-reports")
-def my_reports(member_id: int = Depends(current_member_id)) -> list[dict]:
-    return db.get_reports_for_member(member_id)
 
 
 # --------- UPDATE endpoints ----------
@@ -241,6 +196,7 @@ def create_user(user_details: User):
 # Authenticate user
 @app.post("/api/login")
 def login(request: Request, credentials: UserLogin):
+    # print("Logging in...", credentials.user_name, "with password:", credentials.password)
     # Get hashed password from database
     hash_details = db.get_password_hash(credentials.user_name)
     if hash_details:
@@ -249,6 +205,7 @@ def login(request: Request, credentials: UserLogin):
         if is_valid:
             request.session["user_id"] = hash_details["user_id"]
             request.session["role"] = hash_details["role"]
+            # print(request.session)
             # return Response(status_code=200)
             return {"message": f"Authentication successful",
                     "role": f"{hash_details['role']}"}
@@ -260,7 +217,7 @@ def login(request: Request, credentials: UserLogin):
 @app.post("/api/logout")
 def logout(request: Request):
     request.session.clear()
-    return Response(status_code=204)
+    return RedirectResponse(url="/login", status_code=303)
 
 @app.get("/api/me")
 def user_details(user = Depends(get_current_user)):
@@ -281,6 +238,18 @@ def get_incident_stats(district_id: int = None):
 def get_districts(include_counts: bool = False):
     return db.get_districts(include_counts)
 
-# Get all incident reports inside a district
-# Get incident report type counts by district
-# Get incident report status counts by district
+@app.get("/api/help-requests")
+def get_help_requests():
+    return db.get_help_requests()
+
+@app.get("/login")
+def login_page():
+    return FileResponse("frontend/login.html")
+
+@app.get("/coordinator")
+def coordinator(request: Request):
+    print("/coordinator")
+    print(request.session)
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=303)
+    return FileResponse("frontend/coordinator-index.html")
