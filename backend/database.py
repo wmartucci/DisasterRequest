@@ -111,6 +111,8 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         (first, last, street_address, city, state, tel_no),
     )
 
+    
+
 def create_incident_report(
     member_id,
     type,
@@ -183,6 +185,29 @@ def get_incident_reports():
     ORDER BY i.report_timestamp DESC;
 """)
 
+def get_reports_for_member(member_id):
+
+    return run_query(
+        """
+        SELECT i.report_id,
+               i.type,
+               i.address,
+               i.city,
+               i.state,
+               i.report_timestamp,
+               i.image_url,
+               i.description,
+               i.status,
+               ST_Y(i.location) AS latitude,
+               ST_X(i.location) AS longitude,
+               c.first_name || ' ' || c.last_name AS coordinator_name,
+               u.unit_name
+        FROM incident_reports i
+        WHERE i.member_id = %s
+        ORDER BY i.report_timestamp DESC;
+        """,
+        (member_id,),
+    )
 
 #-----UPDATE------------------#
 def update_incident_report_status(report_id, new_status):          
@@ -191,6 +216,7 @@ def update_incident_report_status(report_id, new_status):
         "UPDATE incident_reports SET status = %s WHERE report_id = %s;",
         (new_status, report_id),
     )
+
 
 
 #-----DELETE------------------#
@@ -204,10 +230,6 @@ def delete_incident_report(report_id):
 
 
 #-----response coordinators-DELETE------------------#
-
-
-
-
 
 def search_incident_reports_by_id(report_id):
     # searches for incident reports by report_id (case-insensitive).

@@ -1,5 +1,19 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
+CREATE TABLE users (
+  user_id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  role TEXT NOT NULL
+    CONSTRAINT role_type_valid
+    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer')),
+  email TEXT NOT NULL
+    CONSTRAINT user_email_unique UNIQUE
+    CONSTRAINT user_email_format CHECK 
+);
+
 CREATE TABLE community_members (
     member_id SERIAL PRIMARY KEY,
     first_name TEXT NOT NULL,
@@ -7,13 +21,13 @@ CREATE TABLE community_members (
     street_address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
-    tel_no TEXT NOT NULL, 
+    tel_no TEXT NOT NULL 
         CONSTRAINT member_valid_tel_no 
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        )
-    email TEXT NOT NULL,
-        CONSTRAINT member_email_unique UNIQUE 
+        ),
+    email TEXT NOT NULL
+        CONSTRAINT member_email_unique UNIQUE, 
     user_id INTEGER UNIQUE
         REFERENCES users(user_id)
 );
@@ -69,6 +83,19 @@ CREATE TABLE posts (
     post_content VARCHAR(3000) NOT NULL,
     post_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP,
     media VARCHAR(70)
+);
+
+CREATE TABLE comments (
+    comment_id SERIAL PRIMARY KEY,
+    post_id INTEGER NOT NULL
+        CONSTRAINT post_comment_fk
+        REFERENCES posts(post_id)
+        ON DELETE CASCADE,
+    member_id INTEGER NOT NULL
+        CONSTRAINT member_comment_fk
+        REFERENCES community_members(member_id),
+    content TEXT NOT NULL,
+    comment_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );
 
 CREATE TABLE response_units (
@@ -138,21 +165,17 @@ CREATE TABLE resources (
         ON DELETE SET NULL
 );
 
+CREATE TABLE password_reset_tokens(
+    user_id INTEGER NOT NULL,
+    token TEXT NOT NULL,
+    token_expiry BIGINT UNSIGNED NOT NULL,
+    PRIMARY KEY (user_id, token)
+)
+
 CREATE TABLE districts (
   district_id SERIAL PRIMARY KEY,
   district_name TEXT NOT NULL,
   boundary GEOMETRY(Polygon, 4326) NOT NULL
-);
-
-CREATE TABLE users (
-  user_id SERIAL PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  first_name TEXT NOT NULL,
-  last_name TEXT NOT NULL,
-  role TEXT NOT NULL
-    CONSTRAINT role_type_valid
-    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer'))
 );
 
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);

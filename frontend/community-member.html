@@ -38,6 +38,12 @@
 .card-meta { color: var(--muted); font-size: 13px; }
 .card-body { margin: 10px 0 0; white-space: pre-wrap; overflow-wrap: anywhere; }
 .card-actions { display: flex; flex-wrap: wrap; gap: 10px; align-items: center; margin-top: 14px; }
+.comments { margin-top: 14px; padding-top: 12px; border-top: 1px solid var(--border); }
+.comment-list { display: grid; gap: 10px; margin: 0 0 12px; padding: 0; list-style: none; }
+.comment-list > li { padding: 10px 12px; border-radius: 8px; background: var(--bg); }
+.comment-list .card-body { margin-top: 4px; }
+.comment-form { display: grid; gap: 8px; }
+.comment-form button { justify-self: start; }
 
 /* Progress steps on "My reports" */
 .steps { display: flex; gap: 6px; margin: 14px 0 4px; padding: 0; list-style: none; }
@@ -99,7 +105,8 @@
       <button data-screen="report">Report an incident</button>
       <button data-screen="board">Community board</button>
 
-      <div id="account" class="actor-bar" hidden>
+      <!-- Always visible, so people can sign out even if a page request fails. -->
+      <div id="account" class="actor-bar">
         <span id="account-name"></span>
         <button id="logout" type="button" class="secondary-button">Log out</button>
       </div>
@@ -253,6 +260,10 @@
     <p>Community member view</p>
   </footer>
   <script type="module">
+// Log out and "who am I" come from the shared api.js, so every page uses the
+// same /api/logout and /api/me calls.
+import { logout, getCurrentUser } from "./api.js";
+
 // API calls for the Community Member and Response Coordinator pages.
 // Reports are listed / updated / deleted with the functions in ../api.js;
 // this file holds the calls that are new. The server knows who is asking from
@@ -305,6 +316,9 @@ const deleteMyReport = (id) => request(`/api/my-reports/${id}`, { method: "DELET
 const getPosts = () => request("/api/posts");
 const createPost = (post) => request("/api/posts", { method: "POST", body: post });
 const deletePost = (id) => request(`/api/posts/${id}`, { method: "DELETE" });
+const getPostComments = (postId) => request(`/api/posts/${postId}/comments`);
+const addPostComment = (postId, comment) =>
+  request(`/api/posts/${postId}/comments`, { method: "POST", body: comment });
 
 // ---- response coordinator
 const getSummary = () => request("/api/dashboard/summary");
@@ -327,7 +341,6 @@ const updateIncidentReportStatus = (id, newStatus) =>
   });
 const deleteIncidentReport = (id) =>
   request(`/api/incident-reports/${encodeURIComponent(id)}`, { method: "DELETE" });
-const logout = () => request("/api/logout", { method: "POST" });
 
 // Small helpers shared by member.js and coordinator.js.
 
@@ -415,6 +428,35 @@ function confirmDialog({ title, text, yes }) {
 }
 
 /*
+ * LOG OUT
+ *
+ * Wired up as soon as the page loads (not after the profile loads), so the
+ * button works even when other requests on the page fail.
+ * POST /api/logout clears the session cookie and returns 204 No Content.
+ */
+$("#logout").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = "Logging out…";
+  try {
+    await logout();
+    window.location.replace("login.html");
+  } catch (error) {
+    // Stay on the page: the session is still active, so don't pretend it ended.
+    button.disabled = false;
+    button.textContent = "Log out";
+    message(`Couldn’t log out: ${readableError(error)}`, true);
+  }
+});
+
+// Show who is signed in next to the button (GET /api/me).
+getCurrentUser()
+  .then((user) => {
+    if (user) $("#account-name").textContent = `${user.first_name} ${user.last_name}`;
+  })
+  .catch(() => { /* not signed in: startSession below sends them to login */ });
+
+/*
  * SIGN-IN CHECK
  *
  * Asks the server who is signed in. Sends signed-out people to login.html and
@@ -437,11 +479,6 @@ async function startSession({ role, otherPage }) {
   }
 
   $("#account-name").textContent = `${profile.first_name} ${profile.last_name}`;
-  $("#account").hidden = false;
-  $("#logout").addEventListener("click", async () => {
-    try { await logout(); } catch { /* leave anyway */ }
-    window.location.replace("login.html");
-  });
 
   if (!profile.has_profile) await completeProfile(role);
   return profile;
@@ -609,6 +646,7 @@ async function loadPosts() {
   }
 }
 
+
 function postCard(post) {
   const item = make("li");
   const head = make("div", null, "card-head");
@@ -618,8 +656,29 @@ function postCard(post) {
   );
   item.append(head, make("p", post.post_content, "card-body"));
 
+  const actions = make("div", null, "card-actions");
+  const comments = commentsSection(post);          // step 3
+
+  let count = Number(post.comment_count) || 0;
+  const toggle = make("button", null, "secondary-button");
+  toggle.type = "button";
+  toggle.setAttribute("aria-expanded", "false");
+  const label = () => { toggle.textContent = `Comments (${count})`; };
+  label();
+
+  toggle.addEventListener("click", () => {
+    const opening = comments.root.hidden;
+    comments.root.hidden = !opening;
+    toggle.setAttribute("aria-expanded", String(opening));
+    if (opening && !comments.loaded) comments.load();
+  });
+
+  // commentsSection calls this after a comment is added successfully
+  comments.onAdded = () => { count += 1; label(); };
+
+  actions.append(toggle);
+
   if (post.is_mine) {
-    const actions = make("div", null, "card-actions");
     const remove = make("button", "Delete my post", "delete-button");
     remove.type = "button";
     remove.addEventListener("click", async () => {
@@ -632,10 +691,76 @@ function postCard(post) {
       if (await attempt(() => deletePost(post.post_id), "Post deleted.")) loadPosts();
     });
     actions.append(remove);
-    item.append(actions);
   }
+
+  item.append(actions, comments.root);
   return item;
 }
+
+function commentsSection(post) {
+  const root = make("div", null, "comments");
+  root.hidden = true;
+
+  const status = make("p", null, "card-meta");
+  status.setAttribute("aria-live", "polite");
+  const list = make("ul", null, "comment-list");
+
+  const form = make("form", null, "comment-form");
+  const box = make("textarea");
+  box.name = "content";
+  box.required = true;
+  box.maxLength = 1000;
+  box.rows = 2;
+  box.placeholder = "Write a comment…";
+  box.setAttribute("aria-label", `Comment on “${post.post_title}”`);
+  const send = make("button", "Comment", "primary-button");
+  send.type = "submit";
+  form.append(box, send);
+
+  root.append(status, list, form);
+
+  const section = { root, loaded: false, onAdded: () => {} };
+
+  section.load = async () => {
+    status.textContent = "Loading comments…";
+    list.replaceChildren();
+    try {
+      const comments = await getPostComments(post.post_id);
+      section.loaded = true;
+      status.textContent = comments.length ? "" : "No comments yet.";
+      comments.forEach((c) => list.append(commentItem(c)));
+    } catch (error) {
+      status.textContent = "";
+      message(readableError(error), true);
+    }
+  };
+
+  form.addEventListener("submit", async (event) => {
+    event.preventDefault();
+    const content = box.value.trim();
+    if (!content) return;
+    send.disabled = true;
+    const ok = await attempt(() => addPostComment(post.post_id, { content }), "Comment added.");
+    send.disabled = false;
+    if (ok) {
+      form.reset();
+      section.onAdded();
+      section.load();   // re-fetch so the new comment shows with its author name
+    }
+  });
+
+  return section;
+}
+
+function commentItem(comment) {
+  const li = make("li");
+  li.append(
+    make("span", `${comment.first_name} ${comment.last_name} · ${date(comment.comment_timestamp)}`, "card-meta"),
+    make("p", comment.content, "card-body"),
+  );
+  return li;
+}
+
 
 $("#post-form").addEventListener("submit", async (event) => {
   event.preventDefault();
