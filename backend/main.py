@@ -7,7 +7,7 @@ from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
-from . import member_portal 
+from members_portal import members_gateway as mdb
 import os
 
 load_dotenv()
@@ -39,7 +39,7 @@ app.add_middleware(  # Add session middleware for user authentication
     https_only=False
 )
 
-app.include_router(member_portal.router)  
+app.include_router(mdb.router)  
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):

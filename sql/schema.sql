@@ -1,5 +1,16 @@
 CREATE EXTENSION IF NOT EXISTS postgis;
 
+CREATE TABLE users (
+  user_id SERIAL PRIMARY KEY,
+  username TEXT UNIQUE NOT NULL,
+  password_hash TEXT NOT NULL,
+  first_name TEXT NOT NULL,
+  last_name TEXT NOT NULL,
+  role TEXT NOT NULL
+    CONSTRAINT role_type_valid
+    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer'))
+);
+
 CREATE TABLE community_members (
     member_id SERIAL PRIMARY KEY,
     first_name TEXT NOT NULL,
@@ -7,13 +18,13 @@ CREATE TABLE community_members (
     street_address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
-    tel_no TEXT NOT NULL, 
+    tel_no TEXT NOT NULL 
         CONSTRAINT member_valid_tel_no 
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        )
-    email TEXT NOT NULL,
-        CONSTRAINT member_email_unique UNIQUE 
+        ),
+    email TEXT NOT NULL
+        CONSTRAINT member_email_unique UNIQUE, 
     user_id INTEGER UNIQUE
         REFERENCES users(user_id)
 );
@@ -144,16 +155,6 @@ CREATE TABLE districts (
   boundary GEOMETRY(Polygon, 4326) NOT NULL
 );
 
-CREATE TABLE users (
-  user_id SERIAL PRIMARY KEY,
-  username TEXT UNIQUE NOT NULL,
-  password_hash TEXT NOT NULL,
-  first_name TEXT NOT NULL,
-  last_name TEXT NOT NULL,
-  role TEXT NOT NULL
-    CONSTRAINT role_type_valid
-    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer'))
-);
 
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);
 CREATE INDEX unit_location_index ON response_units USING gist(location);
