@@ -11,7 +11,9 @@ CREATE TABLE users (
     CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer')),
   email TEXT NOT NULL
     CONSTRAINT user_email_unique UNIQUE
-    CONSTRAINT user_email_format CHECK 
+    CONSTRAINT user_email_format CHECK (
+        email LIKE '_%@_%._%'
+    )
 );
 
 CREATE TABLE community_members (

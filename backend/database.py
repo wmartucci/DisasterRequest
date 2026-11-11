@@ -247,9 +247,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
         with conn.cursor() as cur:
             # 1. Create the login account
             cur.execute(
-                "INSERT INTO users (username, password_hash, first_name, last_name, role) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                (username, password_hash, first_name, last_name, role),
+                "INSERT INTO users (username, password_hash, first_name, last_name, role, email) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
+                (username, password_hash, first_name, last_name, role, email),
             )
             columns = [desc[0] for desc in cur.description] 
             rows = cur.fetchall()
@@ -257,9 +257,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             
             # 2. Create the matching row for the user's role
             if role == "Community Member":
-                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, email, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, street_address, city, state, tel_no, email, user_id),
+                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, user_id) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, street_address, city, state, tel_no, user_id),
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":
