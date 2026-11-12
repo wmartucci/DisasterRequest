@@ -148,6 +148,22 @@ def build_reset_link(raw_token: str) -> str:
     query = urlencode({"token": raw_token})
     return f"{FRONTEND_BASE_URL}/reset-password.html?{query}"
 
+# Request password reset
+def issue_reset_and_email(email: str):
+    # Runs after the response is sent (BackgroundTasks), so every request
+    # returns equally fast whether or not the email has an account.
+    try:
+        user_id = db.get_user_id_by_email(email)
+        if user_id is None:
+            return
+        raw_token = secrets.token_urlsafe(48)                       # goes in the email
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest() # goes in the DB
+        db.create_password_reset_token(user_id, token_hash)         # store the hashed token in the database
+        send_password_reset_email(email, build_reset_link(raw_token))
+    except Exception as exc:
+        # The user already got the generic response; just record the failure.
+        print("Password reset failed in background:", type(exc).__name__, exc)
+
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
 def create_incident_report(report: IncidentReport) -> dict:
@@ -285,21 +301,6 @@ def logout(request: Request):
     return Response(status_code=204)
 
 # Request password reset
-def issue_reset_and_email(email: str):
-    # Runs after the response is sent (BackgroundTasks), so every request
-    # returns equally fast whether or not the email has an account.
-    try:
-        user_id = db.get_user_id_by_email(email)
-        if user_id is None:
-            return
-        raw_token = secrets.token_urlsafe(48)                       # goes in the email
-        token_hash = hashlib.sha256(raw_token.encode()).hexdigest() # goes in the DB
-        db.create_password_reset_token(user_id, token_hash)         # store the hashed token in the database
-        send_password_reset_email(email, build_reset_link(raw_token))
-    except Exception as exc:
-        # The user already got the generic response; just record the failure.
-        print("Password reset failed in background:", type(exc).__name__, exc)
-
 @app.post("/api/password-reset/request")
 def request_password_reset(body: ResetRequest, background_tasks: BackgroundTasks):
     background_tasks.add_task(issue_reset_and_email, body.email.lower())
