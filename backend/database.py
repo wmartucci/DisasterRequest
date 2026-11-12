@@ -18,7 +18,6 @@ class InvalidTypeError(Exception):
 # FUNCTIONS TO ALLOW QUERYING DATABASE
 # --------------------------------------------------------------------------------#
 
-
 def get_connection():
     url = os.environ.get("DATABASE_URL")
     if url:
@@ -110,7 +109,6 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
         (first, last, street_address, city, state, tel_no),
     )
-
     
 
 def create_incident_report(
@@ -141,6 +139,15 @@ def create_incident_report(
             longitude,
             latitude,
         ),
+    )
+
+def create_password_reset_token(user_id, token):
+    # creates a new password reset token in the database
+
+    return run_change_returning(
+        "INSERT INTO password_reset_tokens (user_id, token, expires_at) "
+        "VALUES (%s, %s, %s) RETURNING *;",
+        (user_id, token),
     )
 
 #-----READ------------------#
@@ -209,6 +216,20 @@ def get_reports_for_member(member_id):
         (member_id,),
     )
 
+def search_incident_reports_by_id(report_id):
+    # searches for incident reports by report_id (case-insensitive).
+    return run_query(
+        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
+    )
+
+def get_user_id_by_email(email):
+    # retrieves the user_id for a given email address.
+    rows = run_query(
+        "SELECT user_id FROM users WHERE email = %s;",
+        (email,),
+    )
+    return rows[0][0] if rows else None 
+
 #-----UPDATE------------------#
 def update_incident_report_status(report_id, new_status):          
     # updates the status of an incident report by report_id.
@@ -216,7 +237,6 @@ def update_incident_report_status(report_id, new_status):
         "UPDATE incident_reports SET status = %s WHERE report_id = %s;",
         (new_status, report_id),
     )
-
 
 
 #-----DELETE------------------#
@@ -229,15 +249,6 @@ def delete_incident_report(report_id):
     return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
 
 
-#-----response coordinators-DELETE------------------#
-
-def search_incident_reports_by_id(report_id):
-    # searches for incident reports by report_id (case-insensitive).
-    return run_query(
-        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
-    )
-
-#
 
 
 # ---------- Authentication -------------

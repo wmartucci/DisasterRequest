@@ -500,12 +500,12 @@
   </noscript>
 
   <script type="module">
-    import { login, signup, getCurrentUser } from "/assets/api.js";
+    import { login, signup, getCurrentUser } from "./api.js";
 
     // Where each role lands after logging in.
     const ROLE_HOME = {
       "Community Member": "community-member.html",
-      "Response Coordinator": "/coordinator",
+      "Response Coordinator": "coordinator-index.html",
       "Responder": "index.html",
       "Volunteer": "index.html",
     };

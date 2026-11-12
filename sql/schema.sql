@@ -170,7 +170,7 @@ CREATE TABLE resources (
 CREATE TABLE password_reset_tokens(
     user_id INTEGER NOT NULL,
     token TEXT NOT NULL,
-    token_expiry BIGINT UNSIGNED NOT NULL,
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '1 hour',
     PRIMARY KEY (user_id, token)
 )
 

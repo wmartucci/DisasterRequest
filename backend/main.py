@@ -9,12 +9,17 @@ from dotenv import load_dotenv
 from . import database as db
 from .members_portal import members_gateway as mdb
 import os
+import hashlib
+import secrets
+from urllib.parse import urlencode
 
 load_dotenv()
 
 
 app = FastAPI(title="Disaster Request API", version="1.0.0") # Initialize the FastAPI application
 password_hasher = PasswordHash.recommended() # Initialize the recommended password hasher
+
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5500").rstrip("/")
 
 app.add_middleware(  # Add CORS middleware to allow requests from the frontend
     CORSMiddleware,
@@ -39,7 +44,8 @@ app.add_middleware(  # Add session middleware for user authentication
     https_only=False
 )
 
-app.include_router(mdb.router)  
+app.include_router(mdb.router)  # Include the members portal router
+
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):
@@ -91,6 +97,9 @@ class MyReport(BaseModel):
     longitude: float = Field(ge=-180, le=180)
 
 
+class ResetRequest(BaseModel):
+    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
 # --------- Dependencies -------------
 def get_current_user(request: Request):
     user_id = request.session.get("user_id")
@@ -104,7 +113,9 @@ def get_current_user(request: Request):
 
     return {"user_id": user_id, "role": role}
 
+# Role-based access control
 def require_roles(*allowed_roles):
+    # Returns a dependency that checks if the current user has one of the allowed roles.
     def check_role(user = Depends(get_current_user)):
         if user["role"] not in allowed_roles:
             raise HTTPException(
@@ -125,7 +136,10 @@ def current_member_id(user = Depends(require_roles("Community Member"))) -> int:
         )
     return member_id
 
-
+# Build password reset link
+def build_reset_link(raw_token: str) -> str:
+    query = urlencode({"token": raw_token})
+    return f"{FRONTEND_BASE_URL}/reset-password?{query}"
 
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
@@ -257,11 +271,25 @@ def login(request: Request, credentials: UserLogin):
     else:
         raise HTTPException(status_code=401, detail=f"Invalid username")
 
+# Logout user
 @app.post("/api/logout")
 def logout(request: Request):
     request.session.clear()
     return Response(status_code=204)
 
+# Request password reset
+@app.post("/api/password-reset/request")
+def request_password_reset(body: ResetRequest):
+    user_id = db.get_user_id_by_email(body.email.strip().lower())  # your function
+    if user_id is not None:
+        raw_token = secrets.token_urlsafe(48)                       # goes in the email
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest() # goes in the DB
+        db.create_password_reset_token(user_id, token_hash)         # your function
+        link = build_reset_link(raw_token)
+        print("PASSWORD RESET LINK:", link)  # dev stand-in for sending an email
+    return {"message": "If an account exists for that email, a reset link has been sent."}
+
+# Get current user details
 @app.get("/api/me")
 def user_details(user = Depends(get_current_user)):
     user_info = db.get_user_details(user["user_id"])
