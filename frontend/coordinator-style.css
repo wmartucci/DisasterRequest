@@ -175,6 +175,7 @@
 #report-details-text-div {
     grid-column: 1;
     white-space: pre-line;
+    text-align: left;
 }
 
 #report-details-image-div {

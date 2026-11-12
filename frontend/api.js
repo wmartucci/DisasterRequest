@@ -1,4 +1,4 @@
-const API_BASE_URL = "http://localhost:8000";
+const API_BASE_URL = "";
 
 async function requestApi(path, options = {}) {
     const { headers = {}, ...rest } = options;

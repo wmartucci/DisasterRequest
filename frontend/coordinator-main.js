@@ -11,14 +11,6 @@ const colorRamps = await $arcgis.import(
     "@arcgis/core/smartMapping/symbology/support/colorRamps.js"
 );
 
-// The page is served by Live Server (port 5500) and the API by FastAPI (port 8000).
-// Use "localhost" (not 127.0.0.1) so the session cookie set at login is sent,
-// and credentials: "include" because the two are different origins.
-const API_BASE_URL = "http://localhost:8000";
-function api(path, options = {}) {
-    return fetch(`${API_BASE_URL}${path}`, { credentials: "include", ...options });
-}
-
 async function loadIncidentReports({type = null, status = null, district_id = null, as_geojson = null} = {}) {
     const filters = {
         status: status,
@@ -31,7 +23,7 @@ async function loadIncidentReports({type = null, status = null, district_id = nu
         Object.entries(filters).filter(([key, value]) => value != null)
     );
 
-    const response = await api(`/api/incidents?${params.toString()}`);
+    const response = await fetch(`http://127.0.0.1:8000/api/incidents?${params.toString()}`);
     const data = await response.json()
     
     return data;
@@ -46,7 +38,7 @@ async function loadIncidentReportStats({district_id = null} = {}) {
         Object.entries(filters).filter(([key, value]) => value != null)
     );
 
-    const response = await api(`/api/incidents/stats?${params.toString()}`);
+    const response = await fetch(`http://127.0.0.1:8000/api/incidents/stats?${params.toString()}`);
     const data = await response.json()
     
     return data;
@@ -153,19 +145,18 @@ function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
 }
 
 const user = document.getElementById("nav-user");
-const userDetailsResponse = await api("/api/me");
+const userDetailsResponse = await fetch("/api/me");
 const userDetails = await userDetailsResponse.json();
 user.username = userDetails.first_name + " " + userDetails.last_name;
 
 const logout = document.getElementById("logout");
 logout.addEventListener("click", async function(event) {
-    // /api/logout clears the session and returns 204 (no redirect), so navigate ourselves.
-    try {
-        await api("/api/logout", { method: "POST" });
-    } catch {
-        // leave anyway
+    // Implement logout functionality here
+    console.log("Logout clicked");
+    const response = await fetch("/api/logout", {method: 'POST'});
+    if (response.redirected) {
+        window.location.replace(response.url);
     }
-    window.location.replace("login.html");
 });
 
 const mapElement = document.querySelector("arcgis-map");
@@ -179,7 +170,7 @@ mapElement.highlights = new Collection([
 ]);
 
 // Load districts layer
-const response = await api("/api/districts");
+const response = await fetch("http://127.0.0.1:8000/api/districts");
 const data = await response.json();
 const districtsLayer = geoJSONtoLayer(data, "districts", "Districts", "polygon");
 const districtsRenderer = {
@@ -323,14 +314,6 @@ function getColorScheme(label) {
             return ["Green 4", false];
         case "Flood":
             return ["Blue 3", false];
-        case "Pending Assistance":
-            return ["Red 3", false];
-        case "Help Requested":
-            return ["Esri Yellow 1", true];
-        case "Unit in Response":
-            return ["Green 4", false];
-        case "Resolved":
-            return ["Blue 3", false];
         default:
             return ["Gray 1", false];
     }
@@ -421,7 +404,7 @@ async function updateMapAndTable() {
         layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
     }
     else {
-        const response = await api("/api/districts?include_counts=True");
+        const response = await fetch("http://127.0.0.1:8000/api/districts?include_counts=True");
         const data = await response.json();
         layer = geoJSONtoLayer(data, "districts_styled", "Districts", "polygon");
     }
@@ -507,8 +490,6 @@ statusTypeSwitch.addEventListener("click", async function(event) {
                                               ["#94130e", "#d87914", "#bc9a12", "#5fb108"]
     document.querySelectorAll('[id^="card-"]').forEach((card, index) => {
         card.style.backgroundColor = colorList[index];
-        card.style.color = (statusType === "type" && index === 1) ||
-            (statusType === "status" && index === 2) ? "#000" : "white";
     });
 
     await updateMapAndTable();
@@ -519,44 +500,12 @@ statusTypeSwitch.addEventListener("click", async function(event) {
 let highlightHandle;
 let incidentHighlight = null;
 let districtHighlight = null;
-let selectedReportId = null;
-let selectedReportAttributes = null;
-
-function updateHelpRequestAction(attributes) {
-    const button = document.getElementById("help-request-action-button");
-    button.textContent = attributes.status === "Pending Assistance"
-        ? "Create Request"
-        : "View Request";
-}
-
-function selectDistrictListItem(districtId) {
-    const listItems = document.querySelectorAll("#list-group calcite-list-item");
-    listItems.forEach(item => {
-        const isSelected = districtId != null && item.value?.attributes?.district_id === districtId;
-        item.selected = isSelected;
-        if (isSelected) item.scrollIntoView({behavior: "smooth", block: "center"});
-    });
-}
-
-function clearSelectedReport() {
-    incidentHighlight?.remove();
-    incidentHighlight = null;
-    selectedReportId = null;
-    selectedReportAttributes = null;
-
-    document.querySelectorAll("#list-group calcite-list-item").forEach(item => {
-        item.selected = false;
-    });
-
-    document.getElementById("report-details-card").classList.add("empty");
-    document.getElementById("report-details-text").textContent = "Select a report from the list or map to view its details.";
-    document.getElementById("report-details-image").removeAttribute("src");
-}
 
 const districtReportSwitch = document.getElementById("district-report-switch");
 districtReportSwitch.addEventListener("click", async function(event) {
     districtReport = districtReport === "district" ? "report" : "district";
-    clearSelectedReport();
+    incidentHighlight?.remove();
+    incidentHighlight = null;
     await updateMapAndTable();
     await updateIncidentStats();
 });
@@ -580,25 +529,15 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         r.type === "graphic" && r.graphic.layer.id === "districts"
     );
    
-    if (!result) {
-        clearSelectedReport();
-        return;
-    }
+    if (!result) return;
 
     const layer = result.graphic.layer;
     const layerView = await mapElement.view.whenLayerView(layer);
 
     // Highlight selected incident on map and table and update information card
     if (layer.id === "incidents") {
-        const reportId = result.graphic.attributes.report_id;
-        if (selectedReportId === reportId) {
-            clearSelectedReport();
-            return;
-        }
-
         incidentHighlight?.remove();
         incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
-        selectedReportId = reportId;
         const objectId = result.graphic.getObjectId();
 
         const list = document.getElementById("list-group");
@@ -610,12 +549,8 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const reportDetails = document.getElementById("report-details-text");
         const reportAttributes = result.graphic.attributes;
-        selectedReportAttributes = reportAttributes;
-        updateHelpRequestAction(reportAttributes);
         document.getElementById("report-details-card").classList.remove("empty");
         const text = `<strong>Type</strong>: ${reportAttributes.type}
-
-        <strong>Address</strong>: ${reportAttributes.address}
 
         <strong>Status</strong>: ${reportAttributes.status}
 
@@ -624,10 +559,11 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const image = document.getElementById("report-details-image");
         image.src = reportAttributes.image_url;
+        const deleteReportID = document.getElementById("delete-report-id");
+        deleteReportID.value = String(reportAttributes.report_id);
     }
     // Highlight selected district on map
     else if (layer.id === "districts") {
-        clearSelectedReport();
         const graphic = result.graphic;
         const feature = await graphic.layer.queryFeatures({
             objectIds: [graphic.getObjectId()],
@@ -635,7 +571,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             returnGeometry: false
         });
         const currentSelectedDistrict = feature.features[0].attributes["district_id"];
-        selectDistrictListItem(currentSelectedDistrict != selectedDistrict ? currentSelectedDistrict : null);
 
         // Highlight new district selection if differs from previous selection, load incidents in district
         if (currentSelectedDistrict != selectedDistrict) {
@@ -681,7 +616,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
     }
     // Highlight selected district on choropleth map
     else {
-        clearSelectedReport();
         const graphic = result.graphic;
         const feature = await graphic.layer.queryFeatures({
             objectIds: [graphic.getObjectId()],
@@ -689,7 +623,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             returnGeometry: false
         });
         const currentSelectedDistrict = feature.features[0].attributes["district_id"];
-        selectDistrictListItem(currentSelectedDistrict != selectedDistrict ? currentSelectedDistrict : null);
 
         // Highlight new district
         if (currentSelectedDistrict != selectedDistrict) {
@@ -700,51 +633,27 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             incidentHighlight = null;
 
             selectedDistrict = currentSelectedDistrict;
-            await updateIncidentStats(currentSelectedDistrict);
         }
         // Remove highlight from previously highlighted district
         else {
             districtHighlight?.remove();
             selectedDistrict = null;
-            await updateIncidentStats();
         }
     }
 });
 
 const deleteButton = document.getElementById("delete-report-button");
 deleteButton.addEventListener("click", function(event) {
-    if (selectedReportId == null || selectedReportAttributes == null) return;
-
-    const reportDetails = document.getElementById("delete-report-details");
-    reportDetails.replaceChildren();
-    [
-        ["Type", selectedReportAttributes.type],
-        ["Address", selectedReportAttributes.address],
-        ["Status", selectedReportAttributes.status],
-        ["Description", selectedReportAttributes.description]
-    ].forEach(([label, value]) => {
-        const row = document.createElement("p");
-        const labelElement = document.createElement("strong");
-        labelElement.textContent = `${label}: `;
-        row.append(labelElement, document.createTextNode(value ?? "Not provided"));
-        reportDetails.appendChild(row);
-    });
+    const deleteDialog = document.getElementById("delete-dialog");
     deleteDialog.open = true;
-});
-
-const deleteDialog = document.getElementById("delete-dialog");
-["dialog-back-button", "dialog-cancel-button"].forEach(buttonId => {
-    document.getElementById(buttonId).addEventListener("click", function() {
-        deleteDialog.open = false;
-    });
 });
 
 const dialogDeleteButton = document.getElementById("dialog-delete-button");
 dialogDeleteButton.addEventListener("click", function(event) {
-    if (selectedReportId == null) return;
-    const reportID = selectedReportId;
+    const reportToDelete = document.getElementById("delete-report-id").value;
+    let reportID = parseInt(reportToDelete);
 
-    api(`/api/incident-reports/${reportID}`, {
+    fetch(`http://127.0.0.1:8000/api/incident-reports/${reportID}`, {
         method: "DELETE"
     })
     .then(response => {
@@ -761,34 +670,8 @@ dialogDeleteButton.addEventListener("click", function(event) {
     deleteDialog.open = false;
 })
 
-const helpRequestsList = document.getElementById("requests-list-group");
-let helpRequests = [];
-const helpRequestActionButton = document.getElementById("help-request-action-button");
-helpRequestActionButton.addEventListener("click", function() {
-    if (selectedReportAttributes?.status === "Pending Assistance") return;
-    if (selectedReportId == null) return;
-
-    const helpRequestItem = [...helpRequestsList.querySelectorAll("calcite-list-item")]
-        .find(item => String(item.value?.report_id) === String(selectedReportId));
-    if (!helpRequestItem) {
-        window.alert("No help request was found for this report.");
-        return;
-    }
-
-    document.getElementById("help-requests-menu-item").click();
-    helpRequestItem.selected = true;
-    helpRequestItem.scrollIntoView({behavior: "smooth", block: "center"});
-});
-
 const list = document.getElementById("list-group");
 list.addEventListener("calciteListItemSelect", async function(event) {
-    if (districtReport === "district") return;
-
-    if (!event.target.selected) {
-        clearSelectedReport();
-        return;
-    }
-
     const feature = event.target.value;
     console.log("Selected");
     console.log(feature);
@@ -796,17 +679,12 @@ list.addEventListener("calciteListItemSelect", async function(event) {
     const layerView = await mapView.whenLayerView(activeLayer);
     incidentHighlight?.remove();
     incidentHighlight = layerView.highlight(feature, {"name": "incident"});
-    selectedReportId = feature.attributes.report_id;
     console.log(incidentHighlight);
 
     const reportDetails = document.getElementById("report-details-text");
     const reportAttributes = feature.attributes;
-    selectedReportAttributes = reportAttributes;
-    updateHelpRequestAction(reportAttributes);
     document.getElementById("report-details-card").classList.remove("empty");
     const text = `<strong>Type</strong>: ${reportAttributes.type}
-
-    <strong>Address</strong>: ${reportAttributes.address}
 
     <strong>Status</strong>: ${reportAttributes.status}
 
@@ -815,12 +693,15 @@ list.addEventListener("calciteListItemSelect", async function(event) {
 
     const image = document.getElementById("report-details-image");
     image.src = reportAttributes.image_url;
+    const deleteReportID = document.getElementById("delete-report-id");
+    deleteReportID.value = String(reportAttributes.report_id);
 });
 
 
 
+const helpRequestsList = document.getElementById("requests-list-group");
 const helpRequestsResponse = await fetch("/api/help-requests");
-helpRequests = await helpRequestsResponse.json();
+const helpRequests = await helpRequestsResponse.json();
 helpRequests.forEach(request => {
     console.log(request);
     const item = document.createElement("calcite-list-item");
@@ -863,7 +744,7 @@ menuItems.forEach(item => {
     });
 });
 
-const helpRequestsCountsResponse = await api("/api/help-requests/counts");
+const helpRequestsCountsResponse = await fetch("/api/help-requests/counts");
 const helpRequestsCounts = await helpRequestsCountsResponse.json();
 console.log(helpRequestsCounts);
 
@@ -895,4 +776,4 @@ const chart = new Chart(
             }
         }
     }
-)
+);
