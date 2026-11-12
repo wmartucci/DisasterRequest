@@ -1,4 +1,4 @@
-from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse
 from pydantic import BaseModel, ConfigDict, Field
@@ -7,6 +7,7 @@ from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
+from .email_sender import send_password_reset_email
 from .members_portal import members_gateway as mdb
 import os
 import hashlib
@@ -284,15 +285,24 @@ def logout(request: Request):
     return Response(status_code=204)
 
 # Request password reset
-@app.post("/api/password-reset/request")
-def request_password_reset(body: ResetRequest):
-    user_id = db.get_user_id_by_email(body.email.strip().lower())  
-    if user_id is not None:
+def issue_reset_and_email(email: str):
+    # Runs after the response is sent (BackgroundTasks), so every request
+    # returns equally fast whether or not the email has an account.
+    try:
+        user_id = db.get_user_id_by_email(email)
+        if user_id is None:
+            return
         raw_token = secrets.token_urlsafe(48)                       # goes in the email
         token_hash = hashlib.sha256(raw_token.encode()).hexdigest() # goes in the DB
-        db.create_password_reset_token(user_id, token_hash)       # store the hashed token in the database
-        link = build_reset_link(raw_token)
-        print("PASSWORD RESET LINK:", link)  # dev stand-in for sending an email
+        db.create_password_reset_token(user_id, token_hash)         # store the hashed token in the database
+        send_password_reset_email(email, build_reset_link(raw_token))
+    except Exception as exc:
+        # The user already got the generic response; just record the failure.
+        print("Password reset failed in background:", type(exc).__name__, exc)
+
+@app.post("/api/password-reset/request")
+def request_password_reset(body: ResetRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(issue_reset_and_email, body.email.lower())
     return {"message": "If an account exists for that email, a reset link has been sent."}
 
 # Confirm password reset (the form on reset-password.html)
