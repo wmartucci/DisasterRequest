@@ -386,3 +386,11 @@ def get_help_requests():
                         FROM help_requests h 
                         JOIN incident_reports i ON h.report_id = i.report_id 
                         JOIN response_units u ON h.unit_id = u.unit_id""")
+
+def get_help_request_counts():
+    return run_query("""SELECT status, COUNT(*)
+                        FROM help_requests
+                        GROUP BY status""")
+
+def get_resources():
+    return run_query("""SELECT resource_name, resource_type, quantity FROM resources""")

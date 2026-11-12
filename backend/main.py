@@ -243,6 +243,14 @@ def get_districts(include_counts: bool = False):
 def get_help_requests():
     return db.get_help_requests()
 
+@app.get("/api/help-requests/counts")
+def get_help_request_counts():
+    return db.get_help_request_counts()
+
+@app.get("/api/resources")
+def get_resources():
+    return db.get_resources()
+
 @app.get("/login")
 def login_page():
     return FileResponse("frontend/login.html")

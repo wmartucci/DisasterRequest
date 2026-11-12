@@ -742,7 +742,36 @@ menuItems.forEach(item => {
     });
 });
 
-// const helpRequestsMenuItem = document.getElementById("help-requests-menu-item");
-// helpRequestsMenuItem.addEventListener("click", function(event) {
-//     console.log("Clicked");
-// });
+const helpRequestsCountsResponse = await fetch("/api/help-requests/counts");
+const helpRequestsCounts = await helpRequestsCountsResponse.json();
+console.log(helpRequestsCounts);
+
+const chart = new Chart(
+    document.getElementById("helpRequestCountsChart"),
+    {
+        type: "doughnut",
+        data: {
+            labels: ["Pending", "In Progress", "Completed"],
+            datasets: [{
+                data: [helpRequestsCounts[0]["count"], helpRequestsCounts[1]["count"], helpRequestsCounts[2]["count"]],
+                backgroundColor: ["#bc2938", "#e4ad05", "#21903b"],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "65%",
+            radius: "70%",
+            plugins: {
+                legend: {
+                    position: "left",
+                    labels: {
+                        boxWidth: 12,
+                        padding: 8
+                    }
+                }
+            }
+        }
+    }
+)
