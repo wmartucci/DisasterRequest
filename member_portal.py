@@ -1,9 +1,9 @@
 from fastapi import APIRouter, Depends, HTTPException, Request
 from pydantic import BaseModel, Field
 
-from . import database as db
+from .backend import database as db
 
-from . import members_db as mdb
+from .backend.members_portal import members_db as mdb
 
 router = APIRouter()
 

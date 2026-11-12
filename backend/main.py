@@ -9,6 +9,8 @@ from dotenv import load_dotenv
 from . import database as db
 from .email_sender import send_password_reset_email
 from .members_portal import members_gateway as mdb
+from typing import Literal
+
 import os
 import hashlib
 import secrets
@@ -286,7 +288,7 @@ def login(request: Request, credentials: UserLogin):
 @app.post("/api/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+    return Response(status_code=204)
 
 # Request password reset
 @app.post("/api/password-reset/request")
