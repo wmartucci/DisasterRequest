@@ -351,3 +351,11 @@ def coordinator(request: Request):
     if "user_id" not in request.session:
         return RedirectResponse(url="/login", status_code=303)
     return FileResponse("frontend/coordinator-index.html")
+
+@app.get("/community-member")
+def community_member(request: Request):
+    print("/community-member")
+    print(request.session)
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=303)
+    return FileResponse("frontend/community-member.html")

@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <title>Community Member | Incident Desk</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/assets/style.css" />
   <style>
 /* Extra styles for the Community Member and Response Coordinator screens.
    Loaded after ../style.css, so it reuses the same colours and buttons. */
@@ -260,19 +260,18 @@
     <p>Community member view</p>
   </footer>
   <script type="module">
-// Log out and "who am I" come from the shared api.js, so every page uses the
-// same /api/logout and /api/me calls.
-import { logout, getCurrentUser } from "./api.js";
+// Use FastAPI's asset route when served by the backend, or the sibling module
+// when opened from the frontend directory during local development.
+const apiModule = location.pathname === "/community-member" ? "/assets/api.js" : "./api.js";
+const { logout, getCurrentUser } = await import(apiModule);
 
 // API calls for the Community Member and Response Coordinator pages.
 // Reports are listed / updated / deleted with the functions in ../api.js;
 // this file holds the calls that are new. The server knows who is asking from
 // the login cookie, so none of these send a member or coordinator id.
 
-const API_BASE_URL = "http://localhost:8000";
-
 async function request(path, { method = "GET", body } = {}) {
-  const response = await fetch(`${API_BASE_URL}${path}`, {
+  const response = await fetch(path, {
     method,
     headers: {
       Accept: "application/json",
