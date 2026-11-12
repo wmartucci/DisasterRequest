@@ -376,4 +376,13 @@ def get_districts(include_counts = False):
             return result
 
 def get_help_requests():
-    return run_query("SELECT * FROM help_requests")
+    return run_query("""SELECT h.request_id,
+                               h.request_timestamp,
+                               h.status AS request_status,
+                               i.type,
+                               i.description,
+                               i.report_timestamp,
+                               u.unit_name
+                        FROM help_requests h 
+                        JOIN incident_reports i ON h.report_id = i.report_id 
+                        JOIN response_units u ON h.unit_id = u.unit_id""")

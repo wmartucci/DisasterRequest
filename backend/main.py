@@ -205,6 +205,7 @@ def login(request: Request, credentials: UserLogin):
         if is_valid:
             request.session["user_id"] = hash_details["user_id"]
             request.session["role"] = hash_details["role"]
+            # db.get_user_details(user["user_id"])
             # print(request.session)
             # return Response(status_code=200)
             return {"message": f"Authentication successful",

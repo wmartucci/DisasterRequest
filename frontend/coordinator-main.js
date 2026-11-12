@@ -701,14 +701,28 @@ const helpRequestsList = document.getElementById("requests-list-group");
 const helpRequestsResponse = await fetch("/api/help-requests");
 const helpRequests = await helpRequestsResponse.json();
 helpRequests.forEach(request => {
+    console.log(request);
     const item = document.createElement("calcite-list-item");
-    item.label = request.status;
-    item.description = request.timestamp;
+    item.label = request.request_status;
+    item.description = request.request_timestamp;
     item.value = request;
+
+    const content = document.createElement("div");
+    content.slot = "content";
+    content.innerHTML = `
+        <strong>${request.type}</strong> | ${request.request_status}
+    `;
+    item.appendChild(content);
     const icon = document.createElement("calcite-icon");
     icon.icon = "star";
     icon.slot = "content-start";
     item.appendChild(icon);
+    const timestamp = document.createElement("span");
+    timestamp.slot = "content-end";
+    const time = new Date(request.request_timestamp);
+    timestamp.textContent = time.toLocaleString();
+    item.appendChild(icon);
+    item.appendChild(timestamp);
     helpRequestsList.appendChild(item);
 });
 

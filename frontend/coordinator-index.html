@@ -108,9 +108,50 @@
                     <calcite-list id="requests-list-group">
                     </calcite-list>
                 </div>
-                
-                <div id="requests-list-2">
-                    
+            
+                <calcite-tabs id="request-tabs">
+                    <calcite-tab-nav slot="title-group">
+                        <calcite-tab-title tab="details" selected>
+                            Request Details
+                        </calcite-tab-title>
+                        <calcite-tab-title tab="create-request">
+                            Create Request
+                        </calcite-tab-title>
+                        <calcite-tab-title tab="modify-request">
+                            Modify Request
+                        </calcite-tab-title>
+                    </calcite-tab-nav>
+                    <calcite-tab tab="details" id="request-details-tab" selected>
+                        <h2>Request Details</h2>
+                        <div id="selected-request-details">
+                            <div id="request-details-status">Status: <span id="request-details-status-value"></span></div>
+                            <div id="request-details-timestamp">Created At: <span id="request-details-timestamp-value"></span></div>
+                            <hr>
+                            <div id="request-details-type">Incident Type: <span id="request-details-type-value"></span></div>
+                            <div id="request-details-description">Description: <span id="request-details-description-value"></span></div>
+                            <div id="request-details-report-timestamp">Report Created At: <span id="request-details-report-timestamp-value"></span></div>
+                            <hr>
+                            <div id="request-details-unit-name">Assigned Response Unit: <span id="request-details-unit-name-value"></span></div>
+                        </div>
+                    </calcite-tab>
+                    <calcite-tab tab="create-request">
+                        <h2>Create Request</h2>
+                    </calcite-tab>
+                    <calcite-tab tab="modify-request">
+                        <h2>Modify Request</h2>
+                    </calcite-tab>
+                </calcite-tabs>
+
+                <div id="resource-details">
+                    <h3 id="resource-details-heading">Resources Overview</h3>
+                    <calcite-card id="resource-details-card" heading="Resources Overview">
+                        <div id="resource-details-grid">
+                            <div id="resource-details-text-div">
+                                <div id="resource-details-text">Select a resource</div>
+                                <calcite-button id="delete-resource-button">Delete Selected Resource</calcite-button>
+                            </div>
+                        </div>
+                    </calcite-card>
                 </div>
             </div>
         </div>
