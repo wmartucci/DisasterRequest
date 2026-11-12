@@ -11,14 +11,6 @@ const colorRamps = await $arcgis.import(
     "@arcgis/core/smartMapping/symbology/support/colorRamps.js"
 );
 
-// The page is served by Live Server (port 5500) and the API by FastAPI (port 8000).
-// Use "localhost" (not 127.0.0.1) so the session cookie set at login is sent,
-// and credentials: "include" because the two are different origins.
-const API_BASE_URL = "http://localhost:8000";
-function api(path, options = {}) {
-    return fetch(`${API_BASE_URL}${path}`, { credentials: "include", ...options });
-}
-
 async function loadIncidentReports({type = null, status = null, district_id = null, as_geojson = null} = {}) {
     const filters = {
         status: status,
@@ -31,7 +23,7 @@ async function loadIncidentReports({type = null, status = null, district_id = nu
         Object.entries(filters).filter(([key, value]) => value != null)
     );
 
-    const response = await api(`/api/incidents?${params.toString()}`);
+    const response = await fetch(`http://127.0.0.1:8000/api/incidents?${params.toString()}`);
     const data = await response.json()
     
     return data;
@@ -46,7 +38,7 @@ async function loadIncidentReportStats({district_id = null} = {}) {
         Object.entries(filters).filter(([key, value]) => value != null)
     );
 
-    const response = await api(`/api/incidents/stats?${params.toString()}`);
+    const response = await fetch(`http://127.0.0.1:8000/api/incidents/stats?${params.toString()}`);
     const data = await response.json()
     
     return data;
@@ -153,19 +145,18 @@ function geoJSONtoLayer(geojson, id, title, geometryType = "point") {
 }
 
 const user = document.getElementById("nav-user");
-const userDetailsResponse = await api("/api/me");
+const userDetailsResponse = await fetch("/api/me");
 const userDetails = await userDetailsResponse.json();
 user.username = userDetails.first_name + " " + userDetails.last_name;
 
 const logout = document.getElementById("logout");
 logout.addEventListener("click", async function(event) {
-    // /api/logout clears the session and returns 204 (no redirect), so navigate ourselves.
-    try {
-        await api("/api/logout", { method: "POST" });
-    } catch {
-        // leave anyway
+    // Implement logout functionality here
+    console.log("Logout clicked");
+    const response = await fetch("/api/logout", {method: 'POST'});
+    if (response.redirected) {
+        window.location.replace(response.url);
     }
-    window.location.replace("login.html");
 });
 
 const mapElement = document.querySelector("arcgis-map");
@@ -179,7 +170,7 @@ mapElement.highlights = new Collection([
 ]);
 
 // Load districts layer
-const response = await api("/api/districts");
+const response = await fetch("http://127.0.0.1:8000/api/districts");
 const data = await response.json();
 const districtsLayer = geoJSONtoLayer(data, "districts", "Districts", "polygon");
 const districtsRenderer = {
@@ -413,7 +404,7 @@ async function updateMapAndTable() {
         layer = geoJSONtoLayer(result, "incidents", "Incident Reports");
     }
     else {
-        const response = await api("/api/districts?include_counts=True");
+        const response = await fetch("http://127.0.0.1:8000/api/districts?include_counts=True");
         const data = await response.json();
         layer = geoJSONtoLayer(data, "districts_styled", "Districts", "polygon");
     }
@@ -558,6 +549,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const reportDetails = document.getElementById("report-details-text");
         const reportAttributes = result.graphic.attributes;
+        document.getElementById("report-details-card").classList.remove("empty");
         const text = `<strong>Type</strong>: ${reportAttributes.type}
 
         <strong>Status</strong>: ${reportAttributes.status}
@@ -661,7 +653,7 @@ dialogDeleteButton.addEventListener("click", function(event) {
     const reportToDelete = document.getElementById("delete-report-id").value;
     let reportID = parseInt(reportToDelete);
 
-    api(`/api/incident-reports/${reportID}`, {
+    fetch(`http://127.0.0.1:8000/api/incident-reports/${reportID}`, {
         method: "DELETE"
     })
     .then(response => {
@@ -691,6 +683,7 @@ list.addEventListener("calciteListItemSelect", async function(event) {
 
     const reportDetails = document.getElementById("report-details-text");
     const reportAttributes = feature.attributes;
+    document.getElementById("report-details-card").classList.remove("empty");
     const text = `<strong>Type</strong>: ${reportAttributes.type}
 
     <strong>Status</strong>: ${reportAttributes.status}
@@ -707,7 +700,7 @@ list.addEventListener("calciteListItemSelect", async function(event) {
 
 
 const helpRequestsList = document.getElementById("requests-list-group");
-const helpRequestsResponse = await api("/api/help-requests");
+const helpRequestsResponse = await fetch("/api/help-requests");
 const helpRequests = await helpRequestsResponse.json();
 helpRequests.forEach(request => {
     console.log(request);
@@ -751,7 +744,7 @@ menuItems.forEach(item => {
     });
 });
 
-const helpRequestsCountsResponse = await api("/api/help-requests/counts");
+const helpRequestsCountsResponse = await fetch("/api/help-requests/counts");
 const helpRequestsCounts = await helpRequestsCountsResponse.json();
 console.log(helpRequestsCounts);
 
@@ -783,4 +776,4 @@ const chart = new Chart(
             }
         }
     }
-)
+);

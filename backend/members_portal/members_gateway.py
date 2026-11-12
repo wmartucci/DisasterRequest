@@ -134,7 +134,10 @@ def delete_my_report(report_id: int, member=Depends(member_id)) -> dict:
 @router.get("/api/posts")
 def posts(user=Depends(logged_in)) -> list[dict]:
     viewer = mdb.find_member_id(user["user_id"]) if user["role"] == MEMBER_ROLE else None
-    return mdb.all_posts(viewer)
+    all_posts = mdb.all_posts(viewer)
+    print(all_posts)
+    print(viewer)
+    return all_posts
 
 
 @router.post("/api/posts", status_code=201)

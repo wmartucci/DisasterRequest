@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light" />
   <title>Disaster Response | Sign in</title>
 
-  <link rel="stylesheet" href="auth.css" />
+  <link rel="stylesheet" href="assets/auth.css" />
 </head>
 
 <body>
@@ -220,12 +220,13 @@
   </noscript>
 
   <script type="module">
-    import { login, signup, getCurrentUser, requestPasswordReset } from "./api.js";
+    const apiModule = location.pathname === "/login" ? "/assets/api.js" : "./api.js";
+    const { login, signup, getCurrentUser, requestPasswordReset } = await import(apiModule);
 
     // Where each role lands after logging in.
     const ROLE_HOME = {
-      "Community Member": "community-member.html",
-      "Response Coordinator": "coordinator-index.html",
+      "Community Member": "community-member",
+      "Response Coordinator": "coordinator",
       "Responder": "index.html",
       "Volunteer": "index.html",
     };
