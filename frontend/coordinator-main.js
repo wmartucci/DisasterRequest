@@ -314,6 +314,14 @@ function getColorScheme(label) {
             return ["Green 4", false];
         case "Flood":
             return ["Blue 3", false];
+        case "Pending Assistance":
+            return ["Red 3", false];
+        case "Help Requested":
+            return ["Esri Yellow 1", true];
+        case "Unit in Response":
+            return ["Green 4", false];
+        case "Resolved":
+            return ["Blue 3", false];
         default:
             return ["Gray 1", false];
     }
@@ -490,6 +498,8 @@ statusTypeSwitch.addEventListener("click", async function(event) {
                                               ["#94130e", "#d87914", "#bc9a12", "#5fb108"]
     document.querySelectorAll('[id^="card-"]').forEach((card, index) => {
         card.style.backgroundColor = colorList[index];
+        card.style.color = (statusType === "type" && index === 1) ||
+            (statusType === "status" && index === 2) ? "#000" : "white";
     });
 
     await updateMapAndTable();
@@ -500,12 +510,44 @@ statusTypeSwitch.addEventListener("click", async function(event) {
 let highlightHandle;
 let incidentHighlight = null;
 let districtHighlight = null;
+let selectedReportId = null;
+let selectedReportAttributes = null;
+
+function updateHelpRequestAction(attributes) {
+    const button = document.getElementById("help-request-action-button");
+    button.textContent = attributes.status === "Pending Assistance"
+        ? "Create Request"
+        : "View Request";
+}
+
+function selectDistrictListItem(districtId) {
+    const listItems = document.querySelectorAll("#list-group calcite-list-item");
+    listItems.forEach(item => {
+        const isSelected = districtId != null && item.value?.attributes?.district_id === districtId;
+        item.selected = isSelected;
+        if (isSelected) item.scrollIntoView({behavior: "smooth", block: "center"});
+    });
+}
+
+function clearSelectedReport() {
+    incidentHighlight?.remove();
+    incidentHighlight = null;
+    selectedReportId = null;
+    selectedReportAttributes = null;
+
+    document.querySelectorAll("#list-group calcite-list-item").forEach(item => {
+        item.selected = false;
+    });
+
+    document.getElementById("report-details-card").classList.add("empty");
+    document.getElementById("report-details-text").textContent = "Select a report from the list or map to view its details.";
+    document.getElementById("report-details-image").removeAttribute("src");
+}
 
 const districtReportSwitch = document.getElementById("district-report-switch");
 districtReportSwitch.addEventListener("click", async function(event) {
     districtReport = districtReport === "district" ? "report" : "district";
-    incidentHighlight?.remove();
-    incidentHighlight = null;
+    clearSelectedReport();
     await updateMapAndTable();
     await updateIncidentStats();
 });
@@ -529,15 +571,25 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
         r.type === "graphic" && r.graphic.layer.id === "districts"
     );
    
-    if (!result) return;
+    if (!result) {
+        clearSelectedReport();
+        return;
+    }
 
     const layer = result.graphic.layer;
     const layerView = await mapElement.view.whenLayerView(layer);
 
     // Highlight selected incident on map and table and update information card
     if (layer.id === "incidents") {
+        const reportId = result.graphic.attributes.report_id;
+        if (selectedReportId === reportId) {
+            clearSelectedReport();
+            return;
+        }
+
         incidentHighlight?.remove();
         incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
+        selectedReportId = reportId;
         const objectId = result.graphic.getObjectId();
 
         const list = document.getElementById("list-group");
@@ -549,7 +601,12 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const reportDetails = document.getElementById("report-details-text");
         const reportAttributes = result.graphic.attributes;
+        selectedReportAttributes = reportAttributes;
+        updateHelpRequestAction(reportAttributes);
+        document.getElementById("report-details-card").classList.remove("empty");
         const text = `<strong>Type</strong>: ${reportAttributes.type}
+
+        <strong>Address</strong>: ${reportAttributes.address}
 
         <strong>Status</strong>: ${reportAttributes.status}
 
@@ -558,11 +615,10 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const image = document.getElementById("report-details-image");
         image.src = reportAttributes.image_url;
-        const deleteReportID = document.getElementById("delete-report-id");
-        deleteReportID.value = String(reportAttributes.report_id);
     }
     // Highlight selected district on map
     else if (layer.id === "districts") {
+        clearSelectedReport();
         const graphic = result.graphic;
         const feature = await graphic.layer.queryFeatures({
             objectIds: [graphic.getObjectId()],
@@ -570,6 +626,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             returnGeometry: false
         });
         const currentSelectedDistrict = feature.features[0].attributes["district_id"];
+        selectDistrictListItem(currentSelectedDistrict != selectedDistrict ? currentSelectedDistrict : null);
 
         // Highlight new district selection if differs from previous selection, load incidents in district
         if (currentSelectedDistrict != selectedDistrict) {
@@ -615,6 +672,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
     }
     // Highlight selected district on choropleth map
     else {
+        clearSelectedReport();
         const graphic = result.graphic;
         const feature = await graphic.layer.queryFeatures({
             objectIds: [graphic.getObjectId()],
@@ -622,6 +680,7 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             returnGeometry: false
         });
         const currentSelectedDistrict = feature.features[0].attributes["district_id"];
+        selectDistrictListItem(currentSelectedDistrict != selectedDistrict ? currentSelectedDistrict : null);
 
         // Highlight new district
         if (currentSelectedDistrict != selectedDistrict) {
@@ -632,25 +691,49 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             incidentHighlight = null;
 
             selectedDistrict = currentSelectedDistrict;
+            await updateIncidentStats(currentSelectedDistrict);
         }
         // Remove highlight from previously highlighted district
         else {
             districtHighlight?.remove();
             selectedDistrict = null;
+            await updateIncidentStats();
         }
     }
 });
 
 const deleteButton = document.getElementById("delete-report-button");
 deleteButton.addEventListener("click", function(event) {
-    const deleteDialog = document.getElementById("delete-dialog");
+    if (selectedReportId == null || selectedReportAttributes == null) return;
+
+    const reportDetails = document.getElementById("delete-report-details");
+    reportDetails.replaceChildren();
+    [
+        ["Type", selectedReportAttributes.type],
+        ["Address", selectedReportAttributes.address],
+        ["Status", selectedReportAttributes.status],
+        ["Description", selectedReportAttributes.description]
+    ].forEach(([label, value]) => {
+        const row = document.createElement("p");
+        const labelElement = document.createElement("strong");
+        labelElement.textContent = `${label}: `;
+        row.append(labelElement, document.createTextNode(value ?? "Not provided"));
+        reportDetails.appendChild(row);
+    });
     deleteDialog.open = true;
+});
+
+const deleteDialog = document.getElementById("delete-dialog");
+["dialog-back-button", "dialog-cancel-button"].forEach(buttonId => {
+    document.getElementById(buttonId).addEventListener("click", function() {
+        deleteDialog.open = false;
+    });
 });
 
 const dialogDeleteButton = document.getElementById("dialog-delete-button");
 dialogDeleteButton.addEventListener("click", function(event) {
-    const reportToDelete = document.getElementById("delete-report-id").value;
-    let reportID = parseInt(reportToDelete);
+    if (selectedReportId == null) return;
+    const reportID = selectedReportId;
 
     fetch(`http://127.0.0.1:8000/api/incident-reports/${reportID}`, {
         method: "DELETE"
@@ -669,8 +752,34 @@ dialogDeleteButton.addEventListener("click", function(event) {
     deleteDialog.open = false;
 })
 
+const helpRequestsList = document.getElementById("requests-list-group");
+let helpRequests = [];
+const helpRequestActionButton = document.getElementById("help-request-action-button");
+helpRequestActionButton.addEventListener("click", function() {
+    if (selectedReportAttributes?.status === "Pending Assistance") return;
+    if (selectedReportId == null) return;
+
+    const helpRequestItem = [...helpRequestsList.querySelectorAll("calcite-list-item")]
+        .find(item => String(item.value?.report_id) === String(selectedReportId));
+    if (!helpRequestItem) {
+        window.alert("No help request was found for this report.");
+        return;
+    }
+
+    document.getElementById("help-requests-menu-item").click();
+    helpRequestItem.selected = true;
+    helpRequestItem.scrollIntoView({behavior: "smooth", block: "center"});
+});
+
 const list = document.getElementById("list-group");
 list.addEventListener("calciteListItemSelect", async function(event) {
+    if (districtReport === "district") return;
+
+    if (!event.target.selected) {
+        clearSelectedReport();
+        return;
+    }
+
     const feature = event.target.value;
     console.log("Selected");
     console.log(feature);
@@ -678,11 +787,17 @@ list.addEventListener("calciteListItemSelect", async function(event) {
     const layerView = await mapView.whenLayerView(activeLayer);
     incidentHighlight?.remove();
     incidentHighlight = layerView.highlight(feature, {"name": "incident"});
+    selectedReportId = feature.attributes.report_id;
     console.log(incidentHighlight);
 
     const reportDetails = document.getElementById("report-details-text");
     const reportAttributes = feature.attributes;
+    selectedReportAttributes = reportAttributes;
+    updateHelpRequestAction(reportAttributes);
+    document.getElementById("report-details-card").classList.remove("empty");
     const text = `<strong>Type</strong>: ${reportAttributes.type}
+
+    <strong>Address</strong>: ${reportAttributes.address}
 
     <strong>Status</strong>: ${reportAttributes.status}
 
@@ -691,15 +806,12 @@ list.addEventListener("calciteListItemSelect", async function(event) {
 
     const image = document.getElementById("report-details-image");
     image.src = reportAttributes.image_url;
-    const deleteReportID = document.getElementById("delete-report-id");
-    deleteReportID.value = String(reportAttributes.report_id);
 });
 
 
 
-const helpRequestsList = document.getElementById("requests-list-group");
 const helpRequestsResponse = await fetch("/api/help-requests");
-const helpRequests = await helpRequestsResponse.json();
+helpRequests = await helpRequestsResponse.json();
 helpRequests.forEach(request => {
     console.log(request);
     const item = document.createElement("calcite-list-item");

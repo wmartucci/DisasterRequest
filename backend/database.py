@@ -364,7 +364,11 @@ def get_districts(include_counts = False):
                                 COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count,
                                 COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count,
                                 COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count,
-                                COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count
+                                COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count,
+                                COUNT(*) FILTER (WHERE i.status = 'Pending Assistance') AS pending_count,
+                                COUNT(*) FILTER (WHERE i.status = 'Help Requested') AS requested_count,
+                                COUNT(*) FILTER (WHERE i.status = 'Unit in Response') AS in_response_count,
+                                COUNT(*) FILTER (WHERE i.status = 'Resolved') AS resolved_count
                             FROM districts d
                             LEFT JOIN incident_reports i ON ST_Contains(d.boundary, i.location)
                             GROUP BY d.district_id, d.district_name
@@ -377,6 +381,7 @@ def get_districts(include_counts = False):
 
 def get_help_requests():
     return run_query("""SELECT h.request_id,
+                               h.report_id,
                                h.request_timestamp,
                                h.status AS request_status,
                                i.type,
