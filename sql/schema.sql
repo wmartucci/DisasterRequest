@@ -8,7 +8,7 @@ CREATE TABLE users (
   last_name TEXT NOT NULL,
   role TEXT NOT NULL
     CONSTRAINT role_type_valid
-    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer')),
+    CHECK (role in ('Community Member', 'Response Coordinator', 'Responder', 'Volunteer', 'Admin')),
   email TEXT NOT NULL
     CONSTRAINT user_email_unique UNIQUE
     CONSTRAINT user_email_format CHECK (
@@ -16,10 +16,20 @@ CREATE TABLE users (
     )
 );
 
+CREATE TABLE admin (
+    admin_id SERIAL PRIMARY KEY,
+    tel_no TEXT NOT NULL
+        CONSTRAINT admin_valid_tel_no
+        CHECK (
+            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
+        ),
+    user_id INTEGER UNIQUE NOT NULL
+        REFERENCES users(user_id)
+        ON DELETE CASCADE
+);
+
 CREATE TABLE community_members (
     member_id SERIAL PRIMARY KEY,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
     street_address TEXT NOT NULL,
     city TEXT NOT NULL,
     state TEXT NOT NULL,
@@ -28,8 +38,9 @@ CREATE TABLE community_members (
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
         ),
-    user_id INTEGER UNIQUE
+    user_id INTEGER UNIQUE NOT NULL
         REFERENCES users(user_id)
+        ON DELETE CASCADE
 );
 
 CREATE TABLE response_coordinators (
@@ -54,10 +65,10 @@ CREATE TABLE incident_reports (
         CONSTRAINT report_cooordinator_fk
         REFERENCES response_coordinators(coordinator_id)
         ON DELETE SET NULL,
-    member_id INTEGER NOT NULL 
+    member_id INTEGER
         CONSTRAINT report_member_fk
         REFERENCES community_members(member_id)
-        ON DELETE RESTRICT,
+        ON DELETE SET NULL,
     type TEXT NOT NULL 
         CONSTRAINT report_valid_type
         CHECK(type IN('Fallen Tree', 'Flood', 'Fire', 'Power')),
@@ -93,7 +104,8 @@ CREATE TABLE comments (
         ON DELETE CASCADE,
     member_id INTEGER NOT NULL
         CONSTRAINT member_comment_fk
-        REFERENCES community_members(member_id),
+        REFERENCES community_members(member_id)
+        ON DELETE CASCADE,
     content TEXT NOT NULL,
     comment_timestamp TIMESTAMPTZ NOT NULL DEFAULT CURRENT_TIMESTAMP
 );

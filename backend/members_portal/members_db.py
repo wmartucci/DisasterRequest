@@ -10,13 +10,14 @@ def find_member_id(user_id):
     return rows[0]["member_id"] if rows else None
 
 
-def create_member(user_id, first, last, street_address, city, state, tel_no):
+def create_member(user_id, street_address, city, state, tel_no):
+    # Names live in users; this row only holds the member's contact details.
     try:
         return db.run_change_returning(
             "INSERT INTO community_members "
-            "(first_name, last_name, street_address, city, state, tel_no, user_id) "
-            "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *;",
-            (first, last, street_address, city, state, tel_no, user_id),
+            "(street_address, city, state, tel_no, user_id) "
+            "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
+            (street_address, city, state, tel_no, user_id),
         )
     except psycopg2.errors.CheckViolation as e:
         raise db.InvalidTypeError("Phone number must look like 5405551234 or 540-555-1234") from e
@@ -60,11 +61,12 @@ def all_posts(viewer_member_id):
     return db.run_query(
         """SELECT p.post_id, p.member_id, p.post_title, p.post_content,
                   p.post_timestamp, p.media,
-                  m.first_name, m.last_name,
+                  u.first_name, u.last_name,
                   (p.member_id = %s) AS is_mine,
                 (SELECT COUNT(*) FROM comments c WHERE c.post_id = p.post_id) AS comment_count
            FROM posts p
            JOIN community_members m ON m.member_id = p.member_id
+           JOIN users u ON u.user_id = m.user_id
            ORDER BY p.post_timestamp DESC;""",
         (viewer_member_id,),
     )
@@ -90,9 +92,10 @@ def get_post_comments(post_id):
     return db.run_query(
         """SELECT c.comment_id, c.post_id, c.member_id, c.content,
                   c.comment_timestamp,
-                  m.first_name, m.last_name
+                  u.first_name, u.last_name
            FROM comments c
            JOIN community_members m ON m.member_id = c.member_id
+           JOIN users u ON u.user_id = m.user_id
            WHERE c.post_id = %s
            ORDER BY c.comment_timestamp;""",
         (post_id,),

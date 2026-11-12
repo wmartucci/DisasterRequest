@@ -102,12 +102,12 @@ def run_change_returning(sql, params=None):
 #                         DATABASE QUERY FUNCTIONS
 # --------------------------------------------------------------------------------#
 #-----CREATE------------------#
-def create_community_member(first, last, street_address, city, state, tel_no):
-    # create a new community member in the database. Returns the newly created row.
+def create_community_member(user_id, street_address, city, state, tel_no):
+    # create a community member profile for an existing users row. Names live in users.
     return run_change_returning(
-        "INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no) "
-        "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
-        (first, last, street_address, city, state, tel_no),
+        "INSERT INTO community_members (street_address, city, state, tel_no, user_id) "
+        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
+        (street_address, city, state, tel_no, user_id),
     )
     
 
@@ -167,15 +167,22 @@ def create_password_reset_token(user_id, token):
 #-----READ------------------#
 def get_community_members():
     # retrieves all community members from the database.
-    return run_query("SELECT * FROM community_members ORDER BY member_id;")
+    # Names come from users, joined on user_id.
+    return run_query(
+        """SELECT m.*, u.first_name, u.last_name
+           FROM community_members m
+           JOIN users u ON u.user_id = m.user_id
+           ORDER BY m.member_id;"""
+    )
 
-def search_community_members_by_name(first, last):                 
+def search_community_members_by_name(first, last):
     # searches for community members by first and last name (case-insensitive).
     return run_query(
-        """SELECT *
-           FROM community_members
-           WHERE first_name ILIKE %s OR last_name ILIKE %s
-           ORDER BY last_name, first_name;""",
+        """SELECT m.*, u.first_name, u.last_name
+           FROM community_members m
+           JOIN users u ON u.user_id = m.user_id
+           WHERE u.first_name ILIKE %s OR u.last_name ILIKE %s
+           ORDER BY u.last_name, u.first_name;""",
         (f"%{first}%", f"%{last}%"),
     )
 def get_volunteers():
@@ -188,8 +195,8 @@ def get_incident_reports():
     SELECT i.report_id,
            i.coordinator_id,
            i.member_id,
-           m.first_name,
-           m.last_name,
+           u.first_name,
+           u.last_name,
            m.tel_no,
            i.type,
            i.address,
@@ -203,32 +210,9 @@ def get_incident_reports():
            ST_X(i.location) AS longitude
     FROM incident_reports i
     JOIN community_members m ON i.member_id = m.member_id
+    JOIN users u ON u.user_id = m.user_id
     ORDER BY i.report_timestamp DESC;
 """)
-
-def get_reports_for_member(member_id):
-
-    return run_query(
-        """
-        SELECT i.report_id,
-               i.type,
-               i.address,
-               i.city,
-               i.state,
-               i.report_timestamp,
-               i.image_url,
-               i.description,
-               i.status,
-               ST_Y(i.location) AS latitude,
-               ST_X(i.location) AS longitude,
-               c.first_name || ' ' || c.last_name AS coordinator_name,
-               u.unit_name
-        FROM incident_reports i
-        WHERE i.member_id = %s
-        ORDER BY i.report_timestamp DESC;
-        """,
-        (member_id,),
-    )
 
 def search_incident_reports_by_id(report_id):
     # searches for incident reports by report_id (case-insensitive).
@@ -289,9 +273,19 @@ def update_incident_report_status(report_id, new_status):
 
 
 #-----DELETE------------------#
+def delete_user(user_id):
+    # Deletes a login. ON DELETE CASCADE removes its admin / community_members row
+    # (and that member's posts and comments). Returns rows deleted (0 = no such user).
+    return run_change("DELETE FROM users WHERE user_id = %s;", (user_id,))
+
 def delete_community_member(member_id):
-    # deletes a community member by member_id.
-    return run_change("DELETE FROM community_members WHERE member_id=%s;", (member_id,))
+    # Deletes a community member by deleting their login; the profile row cascades.
+    # Deleting only the community_members row would leave a login with no profile.
+    return run_change(
+        "DELETE FROM users WHERE user_id = "
+        "(SELECT user_id FROM community_members WHERE member_id = %s);",
+        (member_id,),
+    )
 
 def delete_incident_report(report_id):
     # deletes an incident report by report_id.
@@ -325,6 +319,12 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
                 cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email) "
                         "VALUES (%s, %s, %s, %s) RETURNING *;",
                         (first_name, last_name, tel_no, email),
+                    )
+            # 2.2 Create the matching row for the user's role
+            if role == "Admin":
+                cur.execute("INSERT INTO admin (tel_no, user_id) "
+                        "VALUES (%s, %s) RETURNING *;",
+                        (tel_no, user_id),
                     )
 
         conn.commit()  # saves BOTH rows at once

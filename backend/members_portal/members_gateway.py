@@ -94,9 +94,7 @@ def create_profile(body: MemberProfile, user=Depends(logged_in)) -> dict:
     parts = [body.street_address.strip(), body.city.strip(), body.state.strip()]
     if not all(parts):
         raise HTTPException(422, "Street address, city and state are required")
-    columns, rows = mdb.create_member(
-        user["user_id"], info["first_name"], info["last_name"], *parts, body.tel_no.strip()
-    )
+    columns, rows = mdb.create_member(user["user_id"], *parts, body.tel_no.strip())
     return dict(zip(columns, rows[0]))
 
 
