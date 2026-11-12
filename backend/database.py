@@ -18,7 +18,6 @@ class InvalidTypeError(Exception):
 # FUNCTIONS TO ALLOW QUERYING DATABASE
 # --------------------------------------------------------------------------------#
 
-
 def get_connection():
     url = os.environ.get("DATABASE_URL")
     if url:
@@ -110,6 +109,7 @@ def create_community_member(first, last, street_address, city, state, tel_no):
         "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
         (first, last, street_address, city, state, tel_no),
     )
+    
 
 def create_incident_report(
     member_id,
@@ -140,6 +140,29 @@ def create_incident_report(
             latitude,
         ),
     )
+
+def create_password_reset_token(user_id, token):
+    # creates a new password reset token in the database.
+    # Any older tokens for this user are deleted first, so only the newest
+    # emailed link works. expires_at is filled in by PostgreSQL (now() + 1 hour).
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s;", (user_id,))
+            cur.execute(
+                "INSERT INTO password_reset_tokens (user_id, token) "
+                "VALUES (%s, %s) RETURNING *;",
+                (user_id, token),
+            )
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+        conn.commit()  # delete + insert are saved together
+        return columns, rows
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 #-----READ------------------#
 def get_community_members():
@@ -183,8 +206,80 @@ def get_incident_reports():
     ORDER BY i.report_timestamp DESC;
 """)
 
+def get_reports_for_member(member_id):
+
+    return run_query(
+        """
+        SELECT i.report_id,
+               i.type,
+               i.address,
+               i.city,
+               i.state,
+               i.report_timestamp,
+               i.image_url,
+               i.description,
+               i.status,
+               ST_Y(i.location) AS latitude,
+               ST_X(i.location) AS longitude,
+               c.first_name || ' ' || c.last_name AS coordinator_name,
+               u.unit_name
+        FROM incident_reports i
+        WHERE i.member_id = %s
+        ORDER BY i.report_timestamp DESC;
+        """,
+        (member_id,),
+    )
+
+def search_incident_reports_by_id(report_id):
+    # searches for incident reports by report_id (case-insensitive).
+    return run_query(
+        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
+    )
+
+def get_user_id_by_email(email):
+    # retrieves the user_id for a given email address.
+    rows = run_query(
+        "SELECT user_id FROM users WHERE email = %s;",
+        (email,),
+    )
+    return rows[0]["user_id"] if rows else None
 
 #-----UPDATE------------------#
+def redeem_password_reset_token(token, new_password_hash):
+    # Uses a password reset token (its SHA-256 hash) to set a new password.
+    # Returns True if the password was changed, False if the token doesn't
+    # exist or has expired. Everything happens in one transaction:
+    #   1. find the token and lock its row (FOR UPDATE), only if not expired
+    #   2. update the user's password
+    #   3. delete all of that user's reset tokens, so the link can't be reused
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM password_reset_tokens "
+                "WHERE token = %s AND expires_at > now() "
+                "FOR UPDATE;",
+                (token,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                conn.rollback()
+                return False
+            user_id = row[0]
+
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE user_id = %s;",
+                (new_password_hash, user_id),
+            )
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s;", (user_id,))
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def update_incident_report_status(report_id, new_status):          
     # updates the status of an incident report by report_id.
     return run_change(
@@ -203,21 +298,6 @@ def delete_incident_report(report_id):
     return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
 
 
-#-----response coordinators-DELETE------------------#
-
-
-
-
-
-def search_incident_reports_by_id(report_id):
-    # searches for incident reports by report_id (case-insensitive).
-    return run_query(
-        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
-    )
-
-#
-
-
 # ---------- Authentication -------------
 def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email):
     conn = get_connection()
@@ -225,9 +305,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
         with conn.cursor() as cur:
             # 1. Create the login account
             cur.execute(
-                "INSERT INTO users (username, password_hash, first_name, last_name, role) "
-                "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                (username, password_hash, first_name, last_name, role),
+                "INSERT INTO users (username, password_hash, first_name, last_name, role, email) "
+                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
+                (username, password_hash, first_name, last_name, role, email),
             )
             columns = [desc[0] for desc in cur.description] 
             rows = cur.fetchall()
@@ -235,9 +315,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             
             # 2. Create the matching row for the user's role
             if role == "Community Member":
-                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, email, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, street_address, city, state, tel_no, email, user_id),
+                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, user_id) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, street_address, city, state, tel_no, user_id),
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":

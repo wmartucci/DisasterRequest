@@ -48,9 +48,8 @@ The application consists of:
 │   └── IncidentReports.geojson
 ├── frontend/
 │   ├── api.js               # Frontend API client
-│   ├── index.html           # Application page
-│   ├── main.js              # Frontend behavior and rendering
-│   └── style.css            # Application styles
+│   ├── index.html           # Entry point: redirects to the signed-in role's page
+│   └── style.css            # Shared styles for the role pages
 ├── sql/
 │   ├── schema.sql           # PostGIS schema and constraints
 │   └── seed.sql             # Sample data

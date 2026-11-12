@@ -1,14 +1,20 @@
-from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends
+from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
 from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
 from fastapi.staticfiles import StaticFiles
-from pydantic import BaseModel, Field
+from pydantic import BaseModel, ConfigDict, Field
 from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
 from . import database as db
-from . import member_portal 
+from .email_sender import send_password_reset_email
+from .members_portal import members_gateway as mdb
+from typing import Literal
+
 import os
+import hashlib
+import secrets
+from urllib.parse import urlencode
 
 load_dotenv()
 
@@ -16,6 +22,9 @@ load_dotenv()
 app = FastAPI(title="Disaster Request API", version="1.0.0")
 app.mount("/assets", StaticFiles(directory="frontend"), name="assets")
 password_hasher = PasswordHash.recommended()
+
+# Where the HTML pages are served. Live Server run from the repo root serves them under /frontend.
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5500/frontend").rstrip("/")
 
 app.add_middleware(
     CORSMiddleware,
@@ -41,7 +50,8 @@ app.add_middleware(
     https_only=False
 )
 
-app.include_router(member_portal.router)  
+app.include_router(mdb.router)  # Include the members portal router
+
 
 # --------- Data model classes ----------
 class IncidentReport(BaseModel):
@@ -76,6 +86,31 @@ class UserLogin(BaseModel):
     user_name: str
     password: str
 
+# What a signed-in community member sends from the "Report an incident" tab.
+# There is no member_id or status here on purpose: the server takes member_id
+# from the login session (so nobody can file a report as someone else) and
+# every new report starts as "Pending Assistance".
+
+class MyReport(BaseModel):
+
+    type: Literal["Fallen Tree", "Flood", "Fire", "Power"]
+    address: str = Field(min_length=1, max_length=300)
+    city: str = Field(min_length=1, max_length=100)
+    state: str = Field(min_length=1, max_length=100)
+    image_url: str | None = None
+    description: str = Field(min_length=1, max_length=5000)
+    latitude: float = Field(ge=-90, le=90)
+    longitude: float = Field(ge=-180, le=180)
+
+
+class ResetRequest(BaseModel):
+    model_config = ConfigDict(str_strip_whitespace=True)  # trim before the pattern check
+    email: str = Field(pattern=r"^[^\s@]+@[^\s@]+\.[^\s@]+$")
+
+class ResetConfirm(BaseModel):
+    token: str = Field(min_length=1, max_length=200)
+    new_password: str = Field(min_length=8)
+
 # --------- Dependencies -------------
 def get_current_user(request: Request):
     print(request.session)
@@ -90,7 +125,9 @@ def get_current_user(request: Request):
 
     return {"user_id": user_id, "role": role}
 
+# Role-based access control
 def require_roles(*allowed_roles):
+    # Returns a dependency that checks if the current user has one of the allowed roles.
     def check_role(user = Depends(get_current_user)):
         if user["role"] not in allowed_roles:
             raise HTTPException(
@@ -99,6 +136,38 @@ def require_roles(*allowed_roles):
             )
         return user
     return check_role
+
+
+def current_member_id(user = Depends(require_roles("Community Member"))) -> int:
+    # Turns the signed-in account (users.user_id) into its community_members.member_id.
+    member_id = db.get_member_id(user["user_id"])
+    if member_id is None:
+        raise HTTPException(
+            status_code=403,
+            detail="This account isn't linked to a community member profile."
+        )
+    return member_id
+
+# Build password reset link
+def build_reset_link(raw_token: str) -> str:
+    query = urlencode({"token": raw_token})
+    return f"{FRONTEND_BASE_URL}/reset-password.html?{query}"
+
+# Request password reset
+def issue_reset_and_email(email: str):
+    # Runs after the response is sent (BackgroundTasks), so every request
+    # returns equally fast whether or not the email has an account.
+    try:
+        user_id = db.get_user_id_by_email(email)
+        if user_id is None:
+            return
+        raw_token = secrets.token_urlsafe(48)                       # goes in the email
+        token_hash = hashlib.sha256(raw_token.encode()).hexdigest() # goes in the DB
+        db.create_password_reset_token(user_id, token_hash)         # store the hashed token in the database
+        send_password_reset_email(email, build_reset_link(raw_token))
+    except Exception as exc:
+        # The user already got the generic response; just record the failure.
+        print("Password reset failed in background:", type(exc).__name__, exc)
 
 # --------- CREATE endpoints ----------
 @app.post("/api/incident-reports", status_code=201)
@@ -186,7 +255,7 @@ def create_user(user_details: User):
         city=user_details.city,
         state=user_details.state,
         tel_no=user_details.tel_no,
-        email=user_details.email,
+        email=user_details.email.strip().lower(),  # stored lowercase so reset lookups match
     )
     new_user_details = dict(zip(columns, rows[0]))
     del new_user_details["password_hash"]
@@ -215,11 +284,31 @@ def login(request: Request, credentials: UserLogin):
     else:
         raise HTTPException(status_code=401, detail=f"Invalid username")
 
+# Logout user
 @app.post("/api/logout")
 def logout(request: Request):
     request.session.clear()
-    return RedirectResponse(url="/login", status_code=303)
+    return Response(status_code=204)
 
+# Request password reset
+@app.post("/api/password-reset/request")
+def request_password_reset(body: ResetRequest, background_tasks: BackgroundTasks):
+    background_tasks.add_task(issue_reset_and_email, body.email.lower())
+    return {"message": "If an account exists for that email, a reset link has been sent."}
+
+# Confirm password reset (the form on reset-password.html)
+@app.post("/api/password-reset/confirm")
+def confirm_password_reset(body: ResetConfirm):
+    token_hash = hashlib.sha256(body.token.encode()).hexdigest()  # same hash as when it was stored
+    new_hash = password_hasher.hash(body.new_password)
+    if not db.redeem_password_reset_token(token_hash, new_hash):
+        raise HTTPException(
+            status_code=400,
+            detail="This reset link is invalid or has expired. Request a new one.",
+        )
+    return {"message": "Password updated. You can now log in."}
+
+# Get current user details
 @app.get("/api/me")
 def user_details(user = Depends(get_current_user)):
     user_info = db.get_user_details(user["user_id"])

@@ -28,8 +28,6 @@ CREATE TABLE community_members (
         CHECK (
             tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
         ),
-    email TEXT NOT NULL
-        CONSTRAINT member_email_unique UNIQUE, 
     user_id INTEGER UNIQUE
         REFERENCES users(user_id)
 );
@@ -168,11 +166,15 @@ CREATE TABLE resources (
 );
 
 CREATE TABLE password_reset_tokens(
-    user_id INTEGER NOT NULL,
-    token TEXT NOT NULL,
-    token_expiry BIGINT UNSIGNED NOT NULL,
+    user_id INTEGER NOT NULL
+        CONSTRAINT reset_token_user_fk
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
+    token TEXT NOT NULL
+        CONSTRAINT reset_token_unique UNIQUE,  -- SHA-256 hash of the emailed token
+    expires_at TIMESTAMPTZ NOT NULL DEFAULT now() + INTERVAL '1 hour',
     PRIMARY KEY (user_id, token)
-)
+);
 
 CREATE TABLE districts (
   district_id SERIAL PRIMARY KEY,
