@@ -298,6 +298,19 @@ def delete_incident_report(report_id):
     return run_change("DELETE FROM incident_reports WHERE report_id=%s;", (report_id,))
 
 
+#-----response coordinators-DELETE------------------#
+
+
+
+
+
+def search_incident_reports_by_id(report_id):
+    # searches for incident reports by report_id (case-insensitive).
+    return run_query(
+        "SELECT * FROM incident_reports WHERE report_id = %s;", (f"%{report_id}%",)
+    )
+
+#
 
 
 # ---------- Authentication -------------
@@ -307,9 +320,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
         with conn.cursor() as cur:
             # 1. Create the login account
             cur.execute(
-                "INSERT INTO users (username, password_hash, first_name, last_name, role, email) "
-                "VALUES (%s, %s, %s, %s, %s, %s) RETURNING *;",
-                (username, password_hash, first_name, last_name, role, email),
+                "INSERT INTO users (username, password_hash, first_name, last_name, role) "
+                "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
+                (username, password_hash, first_name, last_name, role),
             )
             columns = [desc[0] for desc in cur.description] 
             rows = cur.fetchall()
@@ -317,9 +330,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             
             # 2. Create the matching row for the user's role
             if role == "Community Member":
-                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, street_address, city, state, tel_no, user_id),
+                cur.execute("INSERT INTO community_members (first_name, last_name, street_address, city, state, tel_no, email, user_id) "
+                        "VALUES (%s, %s, %s, %s, %s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, street_address, city, state, tel_no, email, user_id),
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":
@@ -456,3 +469,23 @@ def get_districts(include_counts = False):
             return result[0]['json_build_object']
         else:
             return result
+
+def get_help_requests():
+    return run_query("""SELECT h.request_id,
+                               h.request_timestamp,
+                               h.status AS request_status,
+                               i.type,
+                               i.description,
+                               i.report_timestamp,
+                               u.unit_name
+                        FROM help_requests h 
+                        JOIN incident_reports i ON h.report_id = i.report_id 
+                        JOIN response_units u ON h.unit_id = u.unit_id""")
+
+def get_help_request_counts():
+    return run_query("""SELECT status, COUNT(*)
+                        FROM help_requests
+                        GROUP BY status""")
+
+def get_resources():
+    return run_query("""SELECT resource_name, resource_type, quantity FROM resources""")

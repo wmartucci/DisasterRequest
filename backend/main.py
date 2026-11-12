@@ -1,8 +1,8 @@
 from fastapi import FastAPI, HTTPException, Query, Request, Response, Depends, BackgroundTasks
 from fastapi.middleware.cors import CORSMiddleware
-from fastapi.responses import JSONResponse
+from fastapi.responses import JSONResponse, FileResponse, RedirectResponse
+from fastapi.staticfiles import StaticFiles
 from pydantic import BaseModel, ConfigDict, Field
-from typing import Literal
 from pwdlib import PasswordHash
 from starlette.middleware.sessions import SessionMiddleware
 from dotenv import load_dotenv
@@ -17,27 +17,29 @@ from urllib.parse import urlencode
 load_dotenv()
 
 
-app = FastAPI(title="Disaster Request API", version="1.0.0") # Initialize the FastAPI application
-password_hasher = PasswordHash.recommended() # Initialize the recommended password hasher
+app = FastAPI(title="Disaster Request API", version="1.0.0")
+app.mount("/assets", StaticFiles(directory="frontend"), name="assets")
+password_hasher = PasswordHash.recommended()
 
 # Where the HTML pages are served. Live Server run from the repo root serves them under /frontend.
 FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5500/frontend").rstrip("/")
 
-app.add_middleware(  # Add CORS middleware to allow requests from the frontend
+app.add_middleware(
     CORSMiddleware,
     allow_origins=[
         "http://localhost:5500",
         "http://127.0.0.1:5500",
         "http://localhost:3000",
         "http://127.0.0.1:3000",
+        "http://127.0.0.1:8000",
+        "http://localhost:8000",
     ],
     allow_credentials=True,
     allow_methods=["GET", "POST", "PATCH", "DELETE", "OPTIONS"],
     allow_headers=["*"],
 )
 
-# 
-app.add_middleware(  # Add session middleware for user authentication
+app.add_middleware(
     SessionMiddleware,
     secret_key=os.environ["SESSION_SECRET_KEY"],
     session_cookie="session",
@@ -109,6 +111,7 @@ class ResetConfirm(BaseModel):
 
 # --------- Dependencies -------------
 def get_current_user(request: Request):
+    print(request.session)
     user_id = request.session.get("user_id")
     role = request.session.get("role")
 
@@ -170,19 +173,6 @@ def create_incident_report(report: IncidentReport) -> dict:
     columns, rows = db.create_incident_report(**report.model_dump())
     return dict(zip(columns, rows[0]))
 
-# Signed-in community member files a report for themselves.
-
-@app.post("/api/my-reports", status_code=201)
-
-def create_my_report(report: MyReport, member_id: int = Depends(current_member_id)) -> dict:
-
-    columns, rows = db.create_incident_report(
-        member_id=member_id,
-        status="Pending Assistance",
-        **report.model_dump(),
-    )
-
-    return dict(zip(columns, rows[0]))
 
 # --------- READ endpoints ----------
 @app.get("/api/volunteers")
@@ -205,11 +195,6 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
     if report_id is None:
         return db.get_incident_reports()
     return db.search_incident_reports_by_id(report_id)
-
-# Signed-in community member's own reports ("My reports" tab).
-@app.get("/api/my-reports")
-def my_reports(member_id: int = Depends(current_member_id)) -> list[dict]:
-    return db.get_reports_for_member(member_id)
 
 
 # --------- UPDATE endpoints ----------
@@ -278,6 +263,7 @@ def create_user(user_details: User):
 # Authenticate user
 @app.post("/api/login")
 def login(request: Request, credentials: UserLogin):
+    # print("Logging in...", credentials.user_name, "with password:", credentials.password)
     # Get hashed password from database
     hash_details = db.get_password_hash(credentials.user_name)
     if hash_details:
@@ -286,6 +272,8 @@ def login(request: Request, credentials: UserLogin):
         if is_valid:
             request.session["user_id"] = hash_details["user_id"]
             request.session["role"] = hash_details["role"]
+            # db.get_user_details(user["user_id"])
+            # print(request.session)
             # return Response(status_code=200)
             return {"message": f"Authentication successful",
                     "role": f"{hash_details['role']}"}
@@ -338,6 +326,26 @@ def get_incident_stats(district_id: int = None):
 def get_districts(include_counts: bool = False):
     return db.get_districts(include_counts)
 
-# Get all incident reports inside a district
-# Get incident report type counts by district
-# Get incident report status counts by district
+@app.get("/api/help-requests")
+def get_help_requests():
+    return db.get_help_requests()
+
+@app.get("/api/help-requests/counts")
+def get_help_request_counts():
+    return db.get_help_request_counts()
+
+@app.get("/api/resources")
+def get_resources():
+    return db.get_resources()
+
+@app.get("/login")
+def login_page():
+    return FileResponse("frontend/login.html")
+
+@app.get("/coordinator")
+def coordinator(request: Request):
+    print("/coordinator")
+    print(request.session)
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=303)
+    return FileResponse("frontend/coordinator-index.html")

@@ -1,6 +1,6 @@
 import psycopg2
-
-from .. import database as db
+ 
+from . import database as db
 
 # --------------------------------------------------------------------------------#
 # DATABASE QUERIES (kept here, next to the endpoints that use them)

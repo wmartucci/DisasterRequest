@@ -701,14 +701,28 @@ const helpRequestsList = document.getElementById("requests-list-group");
 const helpRequestsResponse = await fetch("/api/help-requests");
 const helpRequests = await helpRequestsResponse.json();
 helpRequests.forEach(request => {
+    console.log(request);
     const item = document.createElement("calcite-list-item");
-    item.label = request.status;
-    item.description = request.timestamp;
+    item.label = request.request_status;
+    item.description = request.request_timestamp;
     item.value = request;
+
+    const content = document.createElement("div");
+    content.slot = "content";
+    content.innerHTML = `
+        <strong>${request.type}</strong> | ${request.request_status}
+    `;
+    item.appendChild(content);
     const icon = document.createElement("calcite-icon");
     icon.icon = "star";
     icon.slot = "content-start";
     item.appendChild(icon);
+    const timestamp = document.createElement("span");
+    timestamp.slot = "content-end";
+    const time = new Date(request.request_timestamp);
+    timestamp.textContent = time.toLocaleString();
+    item.appendChild(icon);
+    item.appendChild(timestamp);
     helpRequestsList.appendChild(item);
 });
 
@@ -728,7 +742,36 @@ menuItems.forEach(item => {
     });
 });
 
-// const helpRequestsMenuItem = document.getElementById("help-requests-menu-item");
-// helpRequestsMenuItem.addEventListener("click", function(event) {
-//     console.log("Clicked");
-// });
+const helpRequestsCountsResponse = await fetch("/api/help-requests/counts");
+const helpRequestsCounts = await helpRequestsCountsResponse.json();
+console.log(helpRequestsCounts);
+
+const chart = new Chart(
+    document.getElementById("helpRequestCountsChart"),
+    {
+        type: "doughnut",
+        data: {
+            labels: ["Pending", "In Progress", "Completed"],
+            datasets: [{
+                data: [helpRequestsCounts[0]["count"], helpRequestsCounts[1]["count"], helpRequestsCounts[2]["count"]],
+                backgroundColor: ["#bc2938", "#e4ad05", "#21903b"],
+                borderWidth: 0
+            }]
+        },
+        options: {
+            responsive: true,
+            maintainAspectRatio: false,
+            cutout: "65%",
+            radius: "70%",
+            plugins: {
+                legend: {
+                    position: "left",
+                    labels: {
+                        boxWidth: 12,
+                        padding: 8
+                    }
+                }
+            }
+        }
+    }
+)

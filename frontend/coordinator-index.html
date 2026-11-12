@@ -2,8 +2,9 @@
 <head>
     <script type="module" src="https://js.arcgis.com/calcite-components/5.2"></script>
     <script type="module" src="https://js.arcgis.com/5.1"></script>
-    <link rel="stylesheet" href="coordinator-style.css">
-    <script src="coordinator-main.js" type="module"></script>
+    <link rel="stylesheet" href="/assets/coordinator-style.css">
+    <script src="/assets/coordinator-main.js" type="module"></script>
+    <script src="https://cdn.jsdelivr.net/npm/chart.js"></script>
 </head>
 <body>
     <calcite-shell>
@@ -109,9 +110,58 @@
                     </calcite-list>
                 </div>
                 
-                <div id="requests-list-2">
-                    
+                <div id="requests-details">
+                    <h3 id="request-details-heading">Requests Details</h3>
+                    <calcite-accordion selection-mode="multiple">
+                        <calcite-accordion-item heading="Request Status">
+                            <p>Pending help requests go here.</p>
+                        </calcite-accordion-item>
+
+                        <calcite-accordion-item heading="Incident Details">
+                            <p>Active requests go here.</p>
+                        </calcite-accordion-item>
+
+                        <calcite-accordion-item heading="Assigned Response Unit Details">
+                            <p>Completed requests go here.</p>
+                        </calcite-accordion-item>
+                    </calcite-accordion>
                 </div>
+
+                <div id="chart-details">
+                    <h3 id="chart-details-heading">Request Status Counts</h3>
+                    <calcite-card id="help-requests-chart-card">
+                        <div class="chart-layout">
+                            <div class="chart-container">
+                                <canvas id="helpRequestCountsChart"></canvas>
+                            </div>
+                        </div>
+                    </calcite-card>
+                </div>
+                
+
+                <div id="resource-details">
+                    <h3 id="resource-details-heading">Resources Overview</h3>
+                    <calcite-table caption="Help Requests" bordered striped>
+                        <calcite-table-row slot="table-header">
+                            <calcite-table-header heading="ID"></calcite-table-header>
+                            <calcite-table-header heading="Incident"></calcite-table-header>
+                            <calcite-table-header heading="Status"></calcite-table-header>
+                            <calcite-table-header heading="Actions"></calcite-table-header>
+                        </calcite-table-row>
+
+                        <calcite-table-row>
+                            <calcite-table-cell>101</calcite-table-cell>
+                            <calcite-table-cell>Flood</calcite-table-cell>
+                            <calcite-table-cell>
+                                <calcite-chip color="warning">Pending</calcite-chip>
+                            </calcite-table-cell>
+                            <calcite-table-cell>
+                                <calcite-button scale="s">View</calcite-button>
+                            </calcite-table-cell>
+                        </calcite-table-row>
+                    </calcite-table>
+                </div>
+                
             </div>
         </div>
     </calcite-shell>
