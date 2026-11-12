@@ -64,7 +64,12 @@
                 </calcite-panel>
                 <!-- <arcgis-feature-table reference-element="#map" id="table"></arcgis-feature-table> -->
                 <div id="list">
-                    <h3 id="list-heading">Incidents</h3>
+                    <div id="list-heading-bar">
+                        <h3 id="list-heading">Incidents</h3>
+                        <button id="sort-incidents-button" type="button" aria-label="Sort incidents by time ascending" title="Sort incidents by time ascending">
+                            <calcite-icon id="sort-incidents-icon" icon="sort-ascending"></calcite-icon>
+                        </button>
+                    </div>
                     <calcite-list label="Park features" id="list-group" selection-mode="single" selection-appearance="highlight">
                     </calcite-list>
                 </div>
