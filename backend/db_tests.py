@@ -23,14 +23,13 @@ test_connection()
 def test_create_community_member():
     # Test the create_community_member function
     try:
-        first = "John"
-        last = "Doe"
+        user_id = 1  # must be an existing users row that has no member profile yet
         street_address = "123 Main St"
         city = "Anytown"
         state = "CA"
         tel_no = "800-555-1234"
 
-        columns, rows = database.create_community_member(first, last, street_address, city, state, tel_no)
+        columns, rows = database.create_community_member(user_id, street_address, city, state, tel_no)
         assert isinstance(columns, list), "Columns should be a list"
         assert isinstance(rows, list), "Rows should be a list"
 
