@@ -142,13 +142,27 @@ def create_incident_report(
     )
 
 def create_password_reset_token(user_id, token):
-    # creates a new password reset token in the database
-
-    return run_change_returning(
-        "INSERT INTO password_reset_tokens (user_id, token, expires_at) "
-        "VALUES (%s, %s, %s) RETURNING *;",
-        (user_id, token),
-    )
+    # creates a new password reset token in the database.
+    # Any older tokens for this user are deleted first, so only the newest
+    # emailed link works. expires_at is filled in by PostgreSQL (now() + 1 hour).
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s;", (user_id,))
+            cur.execute(
+                "INSERT INTO password_reset_tokens (user_id, token) "
+                "VALUES (%s, %s) RETURNING *;",
+                (user_id, token),
+            )
+            columns = [desc[0] for desc in cur.description]
+            rows = cur.fetchall()
+        conn.commit()  # delete + insert are saved together
+        return columns, rows
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
 
 #-----READ------------------#
 def get_community_members():
@@ -228,9 +242,44 @@ def get_user_id_by_email(email):
         "SELECT user_id FROM users WHERE email = %s;",
         (email,),
     )
-    return rows[0][0] if rows else None 
+    return rows[0]["user_id"] if rows else None
 
 #-----UPDATE------------------#
+def redeem_password_reset_token(token, new_password_hash):
+    # Uses a password reset token (its SHA-256 hash) to set a new password.
+    # Returns True if the password was changed, False if the token doesn't
+    # exist or has expired. Everything happens in one transaction:
+    #   1. find the token and lock its row (FOR UPDATE), only if not expired
+    #   2. update the user's password
+    #   3. delete all of that user's reset tokens, so the link can't be reused
+    conn = get_connection()
+    try:
+        with conn.cursor() as cur:
+            cur.execute(
+                "SELECT user_id FROM password_reset_tokens "
+                "WHERE token = %s AND expires_at > now() "
+                "FOR UPDATE;",
+                (token,),
+            )
+            row = cur.fetchone()
+            if row is None:
+                conn.rollback()
+                return False
+            user_id = row[0]
+
+            cur.execute(
+                "UPDATE users SET password_hash = %s WHERE user_id = %s;",
+                (new_password_hash, user_id),
+            )
+            cur.execute("DELETE FROM password_reset_tokens WHERE user_id = %s;", (user_id,))
+        conn.commit()
+        return True
+    except Exception:
+        conn.rollback()
+        raise
+    finally:
+        conn.close()
+
 def update_incident_report_status(report_id, new_status):          
     # updates the status of an incident report by report_id.
     return run_change(

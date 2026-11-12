@@ -86,6 +86,24 @@ export function getCurrentUser() {
     return requestApi("/api/me");
 }
 
+// Always resolves with the same message whether or not the email exists.
+export function requestPasswordReset(email) {
+    return requestApi("/api/password-reset/request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ email }),
+    });
+}
+
+// token comes from the emailed link (reset-password.html?token=...).
+export function resetPassword(token, new_password) {
+    return requestApi("/api/password-reset/confirm", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ token, new_password }),
+    });
+}
+
 // --------- CREATE functions ----------
 export function createIncidentReport({
     member_id,
