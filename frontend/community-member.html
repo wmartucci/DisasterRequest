@@ -439,7 +439,7 @@ $("#logout").addEventListener("click", async (event) => {
   button.textContent = "Logging out…";
   try {
     await logout();
-    window.location.replace("login.html");
+    window.location.replace("/login");
   } catch (error) {
     // Stay on the page: the session is still active, so don't pretend it ended.
     button.disabled = false;
