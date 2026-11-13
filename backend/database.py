@@ -293,7 +293,7 @@ def delete_incident_report(report_id):
 
 
 # ---------- Authentication -------------
-def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email):
+def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email, organization=None):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -309,23 +309,20 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             
             # 2. Create the matching row for the user's role
             if role == "Community Member":
-                cur.execute("INSERT INTO community_members (street_address, city, state, tel_no, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                        (street_address, city, state, tel_no, user_id),
+                cur.execute("INSERT INTO community_members (street_address, city, state, user_id) "
+                        "VALUES (%s, %s, %s, %s) RETURNING *;",
+                        (street_address, city, state, user_id),
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":
-                print("COORDINATOR INSERT ->", first_name, last_name, tel_no, email)
-                cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, tel_no, email, user_id),
+                cur.execute("INSERT INTO response_coordinators (user_id, organization) "
+                        "VALUES (%s, %s);",
+                        (user_id, organization),
                     )
             # 2.2 Create the matching row for the user's role
+            # (Public signup rejects "Admin" in main.py; kept so this function stays complete.)
             if role == "Admin":
-                cur.execute("INSERT INTO admin (tel_no, user_id) "
-                        "VALUES (%s, %s) RETURNING *;",
-                        (tel_no, user_id),
-                    )
+                cur.execute("INSERT INTO admin (user_id) VALUES (%s);", (user_id,))
 
         conn.commit()  # saves BOTH rows at once
         return columns, rows

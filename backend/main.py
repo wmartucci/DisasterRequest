@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from . import database as db
 from .email_sender import send_password_reset_email
 from .members_portal import members_gateway as mdb
+from .admin_portal import admin_gateway as adb
 from typing import Literal
 
 import os
@@ -23,8 +24,8 @@ app = FastAPI(title="Disaster Request API", version="1.0.0")
 app.mount("/assets", StaticFiles(directory="frontend"), name="assets")
 password_hasher = PasswordHash.recommended()
 
-# Where the HTML pages are served. Live Server run from the repo root serves them under /frontend.
-FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5500/frontend").rstrip("/")
+# Where the HTML pages are served. FastAPI serves them itself (see the page routes at the bottom).
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:8000").rstrip("/")
 
 app.add_middleware(
     CORSMiddleware,
@@ -51,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(mdb.router)  # Include the members portal router
+app.include_router(adb.router)  # Include the admin portal router
 
 
 # --------- Data model classes ----------
@@ -81,6 +83,8 @@ class User(BaseModel):
     city: str
     state: str
     tel_no: str = Field(pattern=r"^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$")
+    # Only Response Coordinators enter an organization; other roles send null or omit it.
+    organization: str | None = None
 
 class UserLogin(BaseModel):
     user_name: str
@@ -156,7 +160,7 @@ def current_member_id(user = Depends(require_roles("Community Member"))) -> int:
 # Build password reset link
 def build_reset_link(raw_token: str) -> str:
     query = urlencode({"token": raw_token})
-    return f"{FRONTEND_BASE_URL}/reset-password.html?{query}"
+    return f"{FRONTEND_BASE_URL}/reset-password?{query}"
 
 # Request password reset
 def issue_reset_and_email(email: str):
@@ -253,6 +257,18 @@ async def database_configuration_error(_: Request, exc: db.InvalidTypeError):
 # Create new user
 @app.post("/api/signup")
 def create_user(user_details: User):
+    # Admin accounts are created only from the admin portal (POST /api/admin/users).
+    if user_details.role == "Admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin accounts can only be created by an existing admin."
+        )
+    organization =user_details.organization.strip() if user_details.organization else None
+    if user_details.role == "Response Coordinator" and not organization:
+        raise HTTPException(
+            status_code=400,
+            detail="Response Coordinators must enter an organization (enter 'Volunteer' if you don't have one)."
+        )
     hashed_password = password_hasher.hash(user_details.password)
     columns, rows = db.create_user(
         first_name=user_details.first_name,
@@ -265,6 +281,7 @@ def create_user(user_details: User):
         state=user_details.state,
         tel_no=user_details.tel_no,
         email=user_details.email.strip().lower(),  # stored lowercase so reset lookups match
+        organization=organization,
     )
     new_user_details = dict(zip(columns, rows[0]))
     del new_user_details["password_hash"]
@@ -396,6 +413,12 @@ def delete_help_request(request_id: int) -> dict:
 def get_resources():
     return db.get_resources()
 
+# Index page
+@app.get("/")
+def index_page():
+    return FileResponse("frontend/index.html")
+
+# Login page
 @app.post("/api/resources/request")
 def request_resources(request_id: int, resources: list[RequestedResource]):
     columns, rows = db.create_resources(resources, request_id=request_id)
@@ -411,6 +434,12 @@ def get_nearest_response_unit(long: float, lat: float):
 def login_page():
     return FileResponse("frontend/login.html")
 
+# Reset password page
+@app.get("/reset-password")
+def reset_password_page():
+    return FileResponse("frontend/reset-password.html")
+
+# Coordinator page
 @app.get("/coordinator")
 def coordinator(request: Request):
     print("/coordinator")
@@ -419,6 +448,7 @@ def coordinator(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     return FileResponse("frontend/coordinator-index.html")
 
+# Community member page
 @app.get("/community-member")
 def community_member(request: Request):
     print("/community-member")
@@ -426,3 +456,12 @@ def community_member(request: Request):
     if "user_id" not in request.session:
         return RedirectResponse(url="/login", status_code=303)
     return FileResponse("frontend/community-member.html")
+
+# Admin page
+@app.get("/admin")
+def admin_page(request: Request):
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=303)
+    if request.session.get("role") != "Admin":
+        return RedirectResponse(url="/", status_code=303)  # index.html sends them to their own page
+    return FileResponse("frontend/admin.html")

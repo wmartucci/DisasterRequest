@@ -1,0 +1,670 @@
+<!doctype html>
+<html lang="en">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1" />
+  <meta name="color-scheme" content="light" />
+  <title>Admin | Incident Desk</title>
+  <link rel="stylesheet" href="/assets/style.css" />
+  <style>
+/* Admin screen. Loaded after style.css and uses the same light theme as the
+   Community Member page, so the three role pages look like one app. */
+
+:root {
+  color-scheme: light;
+  --bg: #f4f0ef;
+  --surface: #ffffff;
+  --border: #cbd5da;
+  --text: #26363d;
+  --muted: #52616b;
+  --teal: #004b72;
+}
+
+body { background: var(--bg); color: var(--text); }
+
+.navigation .admin-dashboard-title {
+  align-self: center;
+  margin: 0 18px 0 0;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.2;
+  white-space: nowrap;
+}
+
+.navigation { background: #004b72; border-bottom: 3px solid #004b72; }
+.navigation button { color: #ffffff; }
+.navigation button:hover { background: #004b72; color: #ffffff; filter: brightness(1.15); }
+.navigation button[aria-current="page"] { background: #ffffff; color: #004b72; }
+
+.actor-bar {
+  display: flex;
+  align-items: center;
+  gap: 10px;
+  margin-left: auto;
+  font-size: 14px;
+}
+.navigation #account-name { color: #ffffff; }
+.navigation .actor-bar .secondary-button {
+  padding: 8px 14px;
+  border: 1px solid #ffffff;
+  background: transparent;
+  color: #ffffff;
+}
+.navigation .actor-bar .secondary-button:hover { background: #004b72; filter: brightness(1.15); }
+
+.panel {
+  border-color: var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(22 46 58 / 10%);
+}
+
+.primary-button { background: #004b72; color: #ffffff; }
+.primary-button:hover { background: #004b72; filter: brightness(1.15); }
+.secondary-button { border-color: #879ca6; background: #ffffff; color: #26363d; }
+.secondary-button:hover { background: #e8eff2; }
+.delete-button { border-color: #b94a5a; background: #fff0f2; color: #842637; }
+.delete-button:hover { background: #ffe0e5; }
+
+input, select, textarea { border-color: #aebdc4; background: #ffffff; color: #26363d; }
+input::placeholder, textarea::placeholder { color: #667780; }
+
+.message { border-color: #a6c6d6; background: #e6f1f7; color: #17435a; }
+.message.success { border-color: #90c6a0; background: #eaf5ed; color: #236239; }
+.message.error { border-color: #d49aa3; background: #fff0f2; color: #842637; }
+
+dialog { border-color: var(--border); background: #ffffff; color: var(--text); }
+dialog form label { margin-bottom: 16px; }
+footer { border-color: var(--border); }
+
+/* Users table */
+th { border-bottom-color: var(--border); }
+td { padding: 14px 12px; }
+td:first-child { white-space: nowrap; }
+td.actions { white-space: nowrap; text-align: right; }
+td.actions button { padding: 8px 12px; font-size: 14px; }
+.role-chip {
+  display: inline-block;
+  padding: 3px 10px;
+  border: 1px solid #a6c6d6;
+  border-radius: 99px;
+  background: #e6f1f7;
+  color: #004b72;
+  font-size: 12px;
+  white-space: nowrap;
+}
+.role-chip.admin { border-color: #d6b46a; background: #fff6e0; color: #6b4a00; }
+.you { color: var(--muted); font-size: 12px; font-weight: 600; }
+
+.filter-bar { grid-template-columns: 2fr 1fr auto; }
+.form-section { margin: 4px 0 0; }
+.hint { display: block; margin-top: 6px; color: var(--muted); font-size: 13px; font-weight: 400; }
+#create-form { max-width: 760px; }
+
+@media (max-width: 650px) {
+  .filter-bar { grid-template-columns: 1fr; }
+  td.actions { text-align: left; white-space: normal; }
+}
+  </style>
+</head>
+
+<body>
+  <a href="#main" class="skip-link">Skip to content</a>
+
+  <nav class="navigation" aria-label="Admin navigation">
+    <div class="nav-inner">
+      <h1 class="admin-dashboard-title">Admin Dashboard</h1>
+      <button data-screen="users">All Users</button>
+      <button data-screen="create">Create User</button>
+
+      <div id="account" class="actor-bar">
+        <span id="account-name"></span>
+        <button id="logout" type="button" class="secondary-button">Log out</button>
+      </div>
+    </div>
+  </nav>
+
+  <main id="main" tabindex="-1">
+    <p id="notice" class="message" role="status" hidden></p>
+    <p id="error" class="message error" role="alert" hidden></p>
+
+    <!-- ============ ALL USERS ============ -->
+    <section id="users" class="screen" aria-labelledby="users-title" hidden>
+      <div class="section-heading">
+        <div>
+          <p class="eyebrow">01 / ALL USERS</p>
+          <h2 id="users-title">Everyone with an account.</h2>
+          <p class="muted">Change a user’s password or delete their account.</p>
+        </div>
+        <button id="users-refresh" class="secondary-button">Refresh</button>
+      </div>
+
+      <div class="filter-bar">
+        <label>
+          Search
+          <input id="user-search" type="search" placeholder="Name, username or email" />
+        </label>
+        <label>
+          Role
+          <select id="role-filter">
+            <option value="">All roles</option>
+          </select>
+        </label>
+        <button id="clear-filters" type="button" class="secondary-button">Clear</button>
+      </div>
+
+      <p id="users-count" class="muted" aria-live="polite"></p>
+      <div class="panel table-wrap">
+        <table>
+          <thead>
+            <tr>
+              <th scope="col">ID</th>
+              <th scope="col">Name</th>
+              <th scope="col">Username</th>
+              <th scope="col">Email</th>
+              <th scope="col">Role</th>
+              <th scope="col"><span class="sr-only">Actions</span></th>
+            </tr>
+          </thead>
+          <tbody id="users-body"></tbody>
+        </table>
+      </div>
+    </section>
+
+    <!-- ============ CREATE USER ============ -->
+    <section id="create" class="screen" aria-labelledby="create-title" hidden>
+      <p class="eyebrow">02 / CREATE USER</p>
+      <h2 id="create-title">Add an account.</h2>
+      <p class="muted">The user can sign in right away with the username and password you set here.</p>
+
+      <form id="create-form" class="panel" novalidate>
+        <div class="form-grid">
+          <label>
+            First name
+            <input name="first_name" required maxlength="100" autocomplete="off" />
+          </label>
+          <label>
+            Last name
+            <input name="last_name" required maxlength="100" autocomplete="off" />
+          </label>
+
+          <label>
+            Role
+            <select name="role" id="create-role" required>
+              <option value="">Select a role</option>
+            </select>
+          </label>
+          <label>
+            Email
+            <input name="email" type="email" required maxlength="254"
+                   placeholder="name@example.com" autocomplete="off"
+                   autocapitalize="none" spellcheck="false" />
+          </label>
+
+          <label>
+            Username
+            <input name="user_name" required maxlength="50" autocomplete="off"
+                   autocapitalize="none" spellcheck="false" />
+          </label>
+          <label>
+            Password
+            <input name="password" type="password" required minlength="8"
+                   autocomplete="new-password" aria-describedby="create-pw-hint" />
+            <span id="create-pw-hint" class="hint">At least 8 characters.</span>
+          </label>
+
+          <!-- Response Coordinator only -->
+          <label id="organization-field" class="full" hidden>
+            Organization
+            <input name="organization" maxlength="200" disabled aria-describedby="org-hint" />
+            <span id="org-hint" class="hint">Enter ‘Volunteer’ if they don’t belong to an organization.</span>
+          </label>
+
+          <!-- Community Member only -->
+          <fieldset id="address-fields" class="full form-grid" hidden disabled
+                    style="border:0; padding:0; margin:0;">
+            <p class="full form-section eyebrow">ADDRESS (OPTIONAL)</p>
+            <p class="full hint" style="margin-top:-16px;">
+              Leave blank and the member will be asked for it on first sign-in.
+            </p>
+            <label class="full">
+              Street address
+              <input name="street_address" maxlength="300" autocomplete="off" />
+            </label>
+            <label>
+              City
+              <input name="city" maxlength="100" autocomplete="off" />
+            </label>
+            <label>
+              State
+              <input name="state" maxlength="100" autocomplete="off" />
+            </label>
+          </fieldset>
+        </div>
+
+        <div class="form-actions">
+          <button type="reset" class="secondary-button">Clear</button>
+          <button type="submit" class="primary-button">Create user</button>
+        </div>
+      </form>
+    </section>
+  </main>
+
+  <!-- ============ CHANGE PASSWORD ============ -->
+  <dialog id="password-dialog" aria-labelledby="password-title">
+    <p class="eyebrow">CHANGE PASSWORD</p>
+    <h2 id="password-title"></h2>
+    <p class="muted">Any password reset links already emailed to this user will stop working.</p>
+    <p id="password-error" class="message error" role="alert" hidden></p>
+    <form id="password-form" novalidate>
+      <label>
+        New password
+        <input name="new_password" type="password" required minlength="8" autocomplete="new-password" />
+      </label>
+      <label>
+        Confirm new password
+        <input name="confirm_password" type="password" required minlength="8" autocomplete="new-password" />
+      </label>
+      <div class="form-actions">
+        <button type="button" id="password-cancel" class="secondary-button">Cancel</button>
+        <button type="submit" class="primary-button">Save password</button>
+      </div>
+    </form>
+  </dialog>
+
+  <!-- ============ CONFIRM DELETE ============ -->
+  <dialog id="confirm" aria-labelledby="confirm-title">
+    <p class="eyebrow">PLEASE CONFIRM</p>
+    <h2 id="confirm-title"></h2>
+    <p id="confirm-text"></p>
+    <div class="form-actions">
+      <button id="confirm-no" class="secondary-button" autofocus>Cancel</button>
+      <button id="confirm-yes" class="delete-button"></button>
+    </div>
+  </dialog>
+
+  <footer>
+    <p>Disaster Request and Resource Management System</p>
+    <p>Admin view</p>
+  </footer>
+
+  <noscript>
+    <p class="message error">Enable JavaScript to use the admin page.</p>
+  </noscript>
+
+  <script type="module">
+import { logout, getCurrentUser } from "/assets/api.js";
+
+const ROLES = ["Community Member", "Response Coordinator", "Responder", "Volunteer", "Admin"];
+// Keep in sync with ROLE_HOME in login.html and index.html.
+const ROLE_HOME = {
+  "Community Member": "/community-member",
+  "Response Coordinator": "/coordinator",
+};
+const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
+
+let users = [];
+let me = null;
+
+// ------------------------------------------------------------------ API calls
+async function request(path, { method = "GET", body } = {}) {
+  const response = await fetch(path, {
+    method,
+    headers: {
+      Accept: "application/json",
+      ...(body ? { "Content-Type": "application/json" } : {}),
+    },
+    credentials: "include",
+    body: body ? JSON.stringify(body) : undefined,
+  });
+
+  if (!response.ok) {
+    if (response.status === 401) window.location.replace("/login");
+    let detail = `Request failed (${response.status})`;
+    try {
+      const data = await response.json();
+      if (typeof data.detail === "string") detail = data.detail;
+      else if (Array.isArray(data.detail)) {
+        detail = data.detail.map((d) => `${d.loc?.at(-1) ?? "request"}: ${d.msg}`).join("; ");
+      }
+    } catch {
+      // keep the status-based message
+    }
+    const error = new Error(detail);
+    error.status = response.status;
+    throw error;
+  }
+  return response.status === 204 ? null : response.json();
+}
+
+const getUsers = () => request("/api/admin/users");
+const createUser = (user) => request("/api/admin/users", { method: "POST", body: user });
+const changePassword = (id, new_password) =>
+  request(`/api/admin/users/${id}/password`, { method: "PATCH", body: { new_password } });
+const deleteUser = (id) => request(`/api/admin/users/${id}`, { method: "DELETE" });
+
+// ------------------------------------------------------------------ Helpers
+const $ = (selector) => document.querySelector(selector);
+
+function make(tag, text, className) {
+  const element = document.createElement(tag);
+  if (text != null) element.textContent = text;
+  if (className) element.className = className;
+  return element;
+}
+
+function readableError(error) {
+  return error?.message || "The request could not be completed.";
+}
+
+function message(text, error = false) {
+  const target = $(error ? "#error" : "#notice");
+  clearMessages();
+  target.textContent = text;
+  target.className = error ? "message error" : "message success";
+  target.hidden = false;
+}
+
+function clearMessages() {
+  $("#error").hidden = true;
+  $("#notice").hidden = true;
+}
+
+function show(screen) {
+  document.querySelectorAll(".screen").forEach((section) => {
+    section.hidden = section.id !== screen;
+  });
+  document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+    if (button.dataset.screen === screen) button.setAttribute("aria-current", "page");
+    else button.removeAttribute("aria-current");
+  });
+}
+
+function confirmDialog({ title, text, yes }) {
+  const dialog = $("#confirm");
+  $("#confirm-title").textContent = title;
+  $("#confirm-text").textContent = text;
+  $("#confirm-yes").textContent = yes;
+  return new Promise((resolve) => {
+    const finish = (answer) => {
+      dialog.close();
+      $("#confirm-yes").onclick = null;
+      $("#confirm-no").onclick = null;
+      resolve(answer);
+    };
+    $("#confirm-yes").onclick = () => finish(true);
+    $("#confirm-no").onclick = () => finish(false);
+    dialog.oncancel = () => resolve(false);
+    dialog.showModal();
+  });
+}
+
+// ------------------------------------------------------------------ Users list
+function fullName(user) {
+  return `${user.first_name} ${user.last_name}`;
+}
+
+function cell(label, content) {
+  const td = make("td");
+  td.dataset.label = label;
+  if (content instanceof Node) td.append(content);
+  else td.append(make("span", content));
+  return td;
+}
+
+function userRow(user) {
+  const tr = make("tr");
+  const isMe = me && user.user_id === me.user_id;
+
+  const name = make("div");
+  name.append(make("span", fullName(user)));
+  if (isMe) name.append(" ", make("span", "(you)", "you"));
+  if (user.organization) name.append(make("small", user.organization));
+  else if (user.city) name.append(make("small", `${user.city}, ${user.state}`));
+
+  const roleChip = make("span", user.role, `role-chip ${user.role === "Admin" ? "admin" : ""}`);
+
+  const actions = make("td", null, "actions");
+  const passwordButton = make("button", "Change password", "secondary-button");
+  passwordButton.type = "button";
+  passwordButton.addEventListener("click", () => openPasswordDialog(user));
+  actions.append(passwordButton);
+
+  if (!isMe) {
+    const deleteButton = make("button", "Delete", "delete-button");
+    deleteButton.type = "button";
+    deleteButton.addEventListener("click", () => removeUser(user, deleteButton));
+    actions.append(deleteButton);
+  }
+
+  tr.append(
+    cell("ID", String(user.user_id)),
+    cell("Name", name),
+    cell("Username", user.username),
+    cell("Email", user.email),
+    cell("Role", roleChip),
+    actions,
+  );
+  return tr;
+}
+
+function renderUsers() {
+  const term = $("#user-search").value.trim().toLowerCase();
+  const role = $("#role-filter").value;
+  const shown = users.filter((user) => {
+    if (role && user.role !== role) return false;
+    if (!term) return true;
+    return [fullName(user), user.username, user.email]
+      .some((value) => value?.toLowerCase().includes(term));
+  });
+
+  const body = $("#users-body");
+  body.replaceChildren(...shown.map(userRow));
+  if (!shown.length) {
+    const tr = make("tr");
+    const td = make("td", users.length ? "No users match these filters." : "No users yet.", "empty");
+    td.colSpan = 6;
+    tr.append(td);
+    body.append(tr);
+  }
+  $("#users-count").textContent = shown.length === users.length
+    ? `${users.length} user${users.length === 1 ? "" : "s"}`
+    : `Showing ${shown.length} of ${users.length} users`;
+}
+
+async function loadUsers() {
+  $("#users-count").textContent = "Loading users…";
+  try {
+    users = await getUsers();
+    renderUsers();
+  } catch (error) {
+    $("#users-count").textContent = "";
+    message(readableError(error), true);
+  }
+}
+
+async function removeUser(user, button) {
+  const yes = await confirmDialog({
+    title: `Delete ${fullName(user)}?`,
+    text: `This permanently removes the account “${user.username}” (${user.role}). ` +
+      (user.role === "Community Member"
+        ? "Their posts, comments and resources are deleted too; their incident reports stay but lose the link to them. "
+        : "") +
+      "This can’t be undone.",
+    yes: "Delete user",
+  });
+  if (!yes) return;
+
+  button.disabled = true;
+  clearMessages();
+  try {
+    await deleteUser(user.user_id);
+    users = users.filter((u) => u.user_id !== user.user_id);
+    renderUsers();
+    message(`Deleted ${fullName(user)} (${user.username}).`);
+  } catch (error) {
+    button.disabled = false;
+    message(readableError(error), true);
+  }
+}
+
+// ------------------------------------------------------------------ Change password
+let passwordTarget = null;
+
+function openPasswordDialog(user) {
+  passwordTarget = user;
+  $("#password-title").textContent = `${fullName(user)} (${user.username})`;
+  $("#password-form").reset();
+  $("#password-error").hidden = true;
+  $("#password-dialog").showModal();
+  $("#password-form").new_password.focus();
+}
+
+function passwordError(text) {
+  $("#password-error").textContent = text;
+  $("#password-error").hidden = false;
+}
+
+$("#password-cancel").addEventListener("click", () => $("#password-dialog").close());
+
+$("#password-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const { new_password, confirm_password } = Object.fromEntries(new FormData(form));
+  if (new_password.length < 8) return passwordError("The password must be at least 8 characters.");
+  if (new_password !== confirm_password) return passwordError("The two passwords don’t match.");
+
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  try {
+    await changePassword(passwordTarget.user_id, new_password);
+    $("#password-dialog").close();
+    message(`Password changed for ${fullName(passwordTarget)} (${passwordTarget.username}).`);
+  } catch (error) {
+    passwordError(readableError(error));
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+// ------------------------------------------------------------------ Create user
+function syncRoleFields() {
+  const role = $("#create-role").value;
+  const isCoordinator = role === "Response Coordinator";
+  const isMember = role === "Community Member";
+  // A disabled input is left out of FormData, so other roles never send these.
+  $("#organization-field").hidden = !isCoordinator;
+  $("#create-form").organization.disabled = !isCoordinator;
+  $("#address-fields").hidden = !isMember;
+  $("#address-fields").disabled = !isMember;
+}
+
+$("#create-role").addEventListener("change", syncRoleFields);
+$("#create-form").addEventListener("reset", () => setTimeout(syncRoleFields));
+
+$("#create-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const data = Object.fromEntries(
+    [...new FormData(form)].map(([key, value]) => [key, value.trim()]),
+  );
+
+  const required = ["first_name", "last_name", "role", "email", "user_name", "password"];
+  if (required.some((key) => !data[key])) {
+    return message("Fill in name, role, email, username and password.", true);
+  }
+  if (!EMAIL_PATTERN.test(data.email)) return message("Enter a valid email address.", true);
+  if (data.password.length < 8) return message("The password must be at least 8 characters.", true);
+  if (data.role === "Response Coordinator" && !data.organization) {
+    return message("Response Coordinators need an organization.", true);
+  }
+  const address = [data.street_address, data.city, data.state];
+  if (data.role === "Community Member" && address.some(Boolean) && !address.every(Boolean)) {
+    return message("Enter street address, city and state together, or leave all three blank.", true);
+  }
+
+  const body = {
+    first_name: data.first_name,
+    last_name: data.last_name,
+    role: data.role,
+    email: data.email,
+    user_name: data.user_name,
+    password: data.password,
+    organization: data.organization || null,
+    street_address: data.street_address || null,
+    city: data.city || null,
+    state: data.state || null,
+  };
+
+  const submit = form.querySelector('[type="submit"]');
+  submit.disabled = true;
+  clearMessages();
+  try {
+    const created = await createUser(body);
+    form.reset();
+    message(`Created ${created.role} ${fullName(created)} (${created.username}).`);
+    loadUsers();
+  } catch (error) {
+    message(readableError(error), true);
+  } finally {
+    submit.disabled = false;
+  }
+});
+
+// ------------------------------------------------------------------ Log out
+$("#logout").addEventListener("click", async (event) => {
+  const button = event.currentTarget;
+  button.disabled = true;
+  button.textContent = "Logging out…";
+  try {
+    const result = await logout();
+    window.location.replace(result?.redirected ? result.url : "/login");
+  } catch (error) {
+    button.disabled = false;
+    button.textContent = "Log out";
+    message(`Couldn’t log out: ${readableError(error)}`, true);
+  }
+});
+
+// ------------------------------------------------------------------ Start up
+for (const role of ROLES) {
+  $("#role-filter").append(new Option(role, role));
+  $("#create-role").append(new Option(role, role));
+}
+
+document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
+  button.addEventListener("click", () => {
+    clearMessages();
+    show(button.dataset.screen);
+  });
+});
+
+$("#users-refresh").addEventListener("click", () => { clearMessages(); loadUsers(); });
+$("#user-search").addEventListener("input", renderUsers);
+$("#role-filter").addEventListener("change", renderUsers);
+$("#clear-filters").addEventListener("click", () => {
+  $("#user-search").value = "";
+  $("#role-filter").value = "";
+  renderUsers();
+});
+
+async function start() {
+  show("users");
+  try {
+    me = await getCurrentUser();
+  } catch {
+    window.location.replace("/login");
+    return;
+  }
+  if (me.role !== "Admin") {
+    window.location.replace(ROLE_HOME[me.role] ?? "/");
+    return;
+  }
+  $("#account-name").textContent = fullName(me);
+  loadUsers();
+}
+
+start();
+  </script>
+</body>
+</html>

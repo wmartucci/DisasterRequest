@@ -424,10 +424,7 @@ footer {
     <p>Community member view</p>
   </footer>
   <script type="module">
-// Use FastAPI's asset route when served by the backend, or the sibling module
-// when opened from the frontend directory during local development.
-const apiModule = location.pathname === "/community-member" ? "/assets/api.js" : "./api.js";
-const { logout, getCurrentUser } = await import(apiModule);
+import { logout, getCurrentUser } from "/assets/api.js";
 
 // API calls for the Community Member and Response Coordinator pages.
 // Reports are listed / updated / deleted with the functions in ../api.js;
@@ -447,7 +444,7 @@ async function request(path, { method = "GET", body } = {}) {
 
   if (!response.ok) {
     // Signed out or session expired: go to the login page.
-    if (response.status === 401) window.location.replace("login.html");
+    if (response.status === 401) window.location.replace("/login");
 
     let detail = `Request failed (${response.status})`;
     try {
@@ -632,12 +629,12 @@ async function startSession({ role, otherPage }) {
   try {
     profile = await getProfile();
   } catch (error) {
-    if (error.status === 403) window.location.replace("login.html");
+    if (error.status === 403) window.location.replace("/login");
     throw error;
   }
 
   if (profile.role !== role) {
-    window.location.replace(otherPage[profile.role] ?? "index.html");
+    window.location.replace(otherPage[profile.role] ?? "/");
     throw new Error("Wrong role for this page");
   }
 
@@ -958,7 +955,7 @@ async function start() {
   try {
     await startSession({
       role: "Community Member",
-      otherPage: { "Response Coordinator": "response-coordinator.html" },
+      otherPage: { "Response Coordinator": "/coordinator" },
     });
     show("reports");
     refreshAll();
