@@ -81,6 +81,8 @@ class User(BaseModel):
     city: str
     state: str
     tel_no: str = Field(pattern=r"^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$")
+    # Only Response Coordinators enter an organization; other roles send null or omit it.
+    organization: str | None = None
 
 class UserLogin(BaseModel):
     user_name: str
@@ -244,6 +246,12 @@ async def database_configuration_error(_: Request, exc: db.InvalidTypeError):
 # Create new user
 @app.post("/api/signup")
 def create_user(user_details: User):
+    organization = user_details.organization.strip() if user_details.organization else None
+    if user_details.role == "Response Coordinator" and not organization:
+        raise HTTPException(
+            status_code=400,
+            detail="Response Coordinators must enter an organization (enter 'Volunteer' if you don't have one)."
+        )
     hashed_password = password_hasher.hash(user_details.password)
     columns, rows = db.create_user(
         first_name=user_details.first_name,
@@ -256,6 +264,7 @@ def create_user(user_details: User):
         state=user_details.state,
         tel_no=user_details.tel_no,
         email=user_details.email.strip().lower(),  # stored lowercase so reset lookups match
+        organization=organization,
     )
     new_user_details = dict(zip(columns, rows[0]))
     del new_user_details["password_hash"]

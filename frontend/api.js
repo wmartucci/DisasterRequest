@@ -63,6 +63,7 @@ export function signup({
     city,
     state,
     tel_no,
+    organization = null,
 }) {
     return requestApi("/api/signup", {
         method: "POST",
@@ -78,6 +79,7 @@ export function signup({
             city,
             state,
             tel_no,
+            organization,
         }),
     });
 }

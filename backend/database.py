@@ -293,7 +293,7 @@ def delete_incident_report(report_id):
 
 
 # ---------- Authentication -------------
-def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email):
+def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email, organization=None):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -315,10 +315,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":
-                print("COORDINATOR INSERT ->", first_name, last_name, tel_no, email)
-                cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, tel_no, email, user_id),
+                cur.execute("INSERT INTO response_coordinators (user_id, organization) "
+                        "VALUES (%s, %s);",
+                        (user_id, organization),
                     )
             # 2.2 Create the matching row for the user's role
             if role == "Admin":

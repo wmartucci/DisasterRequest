@@ -111,6 +111,14 @@
             </select>
           </label>
 
+          <!-- Shown only when "Response Coordinator" is selected -->
+          <label id="organization-field" hidden>
+            Organization
+            <input name="organization" maxlength="200" autocomplete="organization"
+                   aria-describedby="org-hint" disabled />
+            <span id="org-hint" class="hint">Enter ‘Volunteer’ if you don’t belong to an organization.</span>
+          </label>
+
           <label>
             Username
             <input name="user_name" required maxlength="50"
@@ -326,6 +334,18 @@
     });
 
     // ---------- Sign up ----------
+    // Show the Organization box only for Response Coordinators.
+    // A disabled input is left out of FormData, so other roles never send it.
+    const orgField = $("#organization-field");
+    const orgInput = orgField.querySelector("input");
+    $("#signup-form").role.addEventListener("change", (event) => {
+      const isCoordinator = event.target.value === "Response Coordinator";
+      orgField.hidden = !isCoordinator;
+      orgInput.disabled = !isCoordinator;
+      orgInput.required = isCoordinator;
+      if (!isCoordinator) orgInput.value = "";
+    });
+
     $("#signup-form").addEventListener("submit", async (event) => {
       event.preventDefault();
       if (busy) return;
@@ -343,6 +363,13 @@
 
       if (!data.role || textFields.some((key) => !data[key])) {
         showMessage("Fill in every field to create your account.", true);
+        return;
+      }
+      const isCoordinator = data.role === "Response Coordinator";
+      const organization = isCoordinator ? (data.organization ?? "").trim() : null;
+      if (isCoordinator && !organization) {
+        showMessage("Enter your organization, or ‘Volunteer’ if you don’t have one.", true);
+        form.organization.focus();
         return;
       }
       if (!EMAIL_PATTERN.test(data.email)) {
@@ -381,6 +408,7 @@
           city: data.city,
           state: data.state,
           tel_no: data.tel_no,
+          organization,
         });
 
         // /api/signup doesn't start a session, so log the new user in.
