@@ -288,7 +288,7 @@ def login(request: Request, credentials: UserLogin):
 @app.post("/api/logout")
 def logout(request: Request):
     request.session.clear()
-    return Response(status_code=204)
+    return RedirectResponse(url="/login", status_code=303)
 
 # Request password reset
 @app.post("/api/password-reset/request")

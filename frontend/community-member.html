@@ -3,7 +3,7 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1" />
-  <meta name="color-scheme" content="dark" />
+  <meta name="color-scheme" content="light" />
   <title>Community Member | Incident Desk</title>
   <link rel="stylesheet" href="/assets/style.css" />
   <style>
@@ -82,6 +82,178 @@
 /* Finish-profile form */
 #profile { max-width: 520px; }
 #profile-form label { margin-bottom: 16px; }
+
+/* Match the coordinator dashboard's blue navigation and light workspace. */
+:root {
+  color-scheme: light;
+  --bg: #f4f0ef;
+  --surface: #ffffff;
+  --border: #cbd5da;
+  --text: #26363d;
+  --muted: #52616b;
+  --teal: #004b72;
+}
+
+body {
+  background: var(--bg);
+  color: var(--text);
+}
+
+.hero {
+  background: #004b72;
+  border-bottom: 0;
+}
+
+.hero-inner {
+  padding-block: 30px;
+}
+
+.hero h1 {
+  margin-bottom: 12px;
+  font-size: clamp(24px, 3vw, 40px);
+}
+
+.hero .eyebrow,
+.hero h1 span {
+  color: #b9dcff;
+}
+
+.hero h1,
+.hero h1 span {
+  color: #b9dcff;
+}
+
+.hero-inner > div:first-child > p:last-child {
+  color: #e2edf4;
+}
+
+.navigation {
+  background: #003b5c;
+  border-bottom: 3px solid #b9dcff;
+}
+
+.navigation button {
+  color: #e2edf4;
+}
+
+.navigation button:hover {
+  background: #145a7c;
+  color: #ffffff;
+}
+
+.navigation button[aria-current="page"] {
+  background: #ffffff;
+  color: #004b72;
+}
+
+.navigation .actor-bar .secondary-button {
+  border-color: #b9dcff;
+  background: transparent;
+  color: #ffffff;
+}
+
+.navigation .actor-bar .secondary-button:hover {
+  background: #145a7c;
+}
+
+.navigation #account-name {
+  color: #ffffff;
+}
+
+.panel,
+.card-list > li,
+.stat-card {
+  border-color: var(--border);
+  border-radius: 8px;
+  background: var(--surface);
+  box-shadow: 0 1px 3px rgb(22 46 58 / 10%);
+}
+
+.primary-button {
+  background: #004b72;
+  color: #ffffff;
+}
+
+.primary-button:hover {
+  background: #00618f;
+}
+
+.secondary-button {
+  border-color: #879ca6;
+  background: #ffffff;
+  color: #26363d;
+}
+
+.secondary-button:hover {
+  background: #e8eff2;
+}
+
+.delete-button {
+  border-color: #b94a5a;
+  background: #fff0f2;
+  color: #842637;
+}
+
+.delete-button:hover {
+  background: #ffe0e5;
+}
+
+input,
+select,
+textarea {
+  border-color: #aebdc4;
+  background: #ffffff;
+  color: #26363d;
+}
+
+input::placeholder,
+textarea::placeholder {
+  color: #667780;
+}
+
+.status-chip {
+  border-color: #a6c6d6;
+  background: #e6f1f7;
+  color: #004b72;
+}
+
+.status-chip.resolved {
+  border-color: #a7ceb2;
+  background: #eaf5ed;
+  color: #236239;
+}
+
+.message {
+  border-color: #a6c6d6;
+  background: #e6f1f7;
+  color: #17435a;
+}
+
+.message.success {
+  border-color: #90c6a0;
+  background: #eaf5ed;
+  color: #236239;
+}
+
+.message.error {
+  border-color: #d49aa3;
+  background: #fff0f2;
+  color: #842637;
+}
+
+.comment-list > li {
+  background: #f1f5f6;
+}
+
+dialog {
+  border-color: var(--border);
+  background: #ffffff;
+  color: var(--text);
+}
+
+footer {
+  border-color: var(--border);
+}
 
   </style>
 </head>
@@ -431,15 +603,15 @@ function confirmDialog({ title, text, yes }) {
  *
  * Wired up as soon as the page loads (not after the profile loads), so the
  * button works even when other requests on the page fail.
- * POST /api/logout clears the session cookie and returns 204 No Content.
+ * POST /api/logout clears the session cookie and redirects to the login page.
  */
 $("#logout").addEventListener("click", async (event) => {
   const button = event.currentTarget;
   button.disabled = true;
   button.textContent = "Logging out…";
   try {
-    await logout();
-    window.location.replace("/login");
+    const result = await logout();
+    window.location.replace(result?.redirected ? result.url : "/login");
   } catch (error) {
     // Stay on the page: the session is still active, so don't pretend it ended.
     button.disabled = false;

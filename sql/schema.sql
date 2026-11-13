@@ -16,47 +16,22 @@ CREATE TABLE users (
     )
 );
 
-CREATE TABLE admin (
-    admin_id SERIAL PRIMARY KEY,
-    tel_no TEXT NOT NULL
-        CONSTRAINT admin_valid_tel_no
-        CHECK (
-            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        ),
-    user_id INTEGER UNIQUE NOT NULL
-        REFERENCES users(user_id)
-        ON DELETE CASCADE
-);
-
 CREATE TABLE community_members (
     member_id SERIAL PRIMARY KEY,
-    street_address TEXT NOT NULL,
-    city TEXT NOT NULL,
-    state TEXT NOT NULL,
-    tel_no TEXT NOT NULL 
-        CONSTRAINT member_valid_tel_no 
-        CHECK (
-            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        ),
     user_id INTEGER UNIQUE NOT NULL
         REFERENCES users(user_id)
-        ON DELETE CASCADE
+        ON DELETE CASCADE,
+    street_address TEXT NOT NULL,
+    city TEXT NOT NULL,
+    state TEXT NOT NULL
 );
 
 CREATE TABLE response_coordinators (
+    user_id INTEGER UNIQUE NOT NULL
+        REFERENCES users(user_id)
+        ON DELETE CASCADE,
     coordinator_id SERIAL PRIMARY KEY,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    tel_no TEXT NOT NULL 
-        CONSTRAINT coordinator_valid_tel_no 
-        CHECK (
-            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        ),
-    email TEXT NOT NULL 
-        CONSTRAINT coord_email_unique UNIQUE
-        CONSTRAINT coord_email_format CHECK (
-            email LIKE '_%@_%._%'
-        )
+    organization TEXT NOT NULL
 );
 
 CREATE TABLE incident_reports (
@@ -140,22 +115,6 @@ CREATE TABLE help_requests (
     called_911 BOOLEAN NOT NULL DEFAULT FALSE
 );
 
-CREATE TABLE volunteers (
-    volunteer_id SERIAL PRIMARY KEY,
-    first_name TEXT NOT NULL,
-    last_name TEXT NOT NULL,
-    tel_no TEXT NOT NULL 
-        CONSTRAINT volunteer_valid_tel_no
-        CHECK (
-            tel_no ~ '^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$'
-        ),
-    email TEXT NOT NULL 
-        CONSTRAINT volunteer_valid_email
-        CHECK (
-            email LIKE '_%@_%._%'
-        )
-);
-
 CREATE TABLE resources (
     resource_id SERIAL PRIMARY KEY,
     resource_name TEXT NOT NULL,
@@ -171,9 +130,9 @@ CREATE TABLE resources (
         CONSTRAINT resource_request_fk
         REFERENCES help_requests(request_id)
         ON DELETE SET NULL,
-    volunteer_id INTEGER NOT NULL
-        CONSTRAINT resource_volunteer_fk
-        REFERENCES volunteers(volunteer_id)
+    member_id INTEGER NOT NULL
+        CONSTRAINT resource_member_fk
+        REFERENCES community_members(member_id)
         ON DELETE SET NULL
 );
 
@@ -197,16 +156,3 @@ CREATE TABLE districts (
 CREATE INDEX report_location_index ON incident_reports USING GIST(location);
 CREATE INDEX unit_location_index ON response_units USING gist(location);
 CREATE INDEX districts_boundaries_index ON districts USING GIST(boundary);
-
-CREATE VIEW incident_types_by_district AS
-SELECT 
-  d.district_name, 
-  COUNT(*) AS total_incidents,
-  COUNT(*) FILTER (WHERE i.type = 'Flood') AS flood_count,
-  COUNT(*) FILTER (WHERE i.type = 'Fallen Tree') AS tree_count,
-  COUNT(*) FILTER (WHERE i.type = 'Power') AS power_count,
-  COUNT(*) FILTER (WHERE i.type = 'Fire') AS fire_count
-FROM districts d
-LEFT JOIN incident_reports i ON ST_Contains(d.boundary, i.location)
-GROUP BY d.district_name
-ORDER BY total_incidents DESC;

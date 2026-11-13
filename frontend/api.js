@@ -34,7 +34,11 @@ async function requestApi(path, options = {}) {
         throw error;
     }
 
-    // 204 No Content (e.g. /api/logout) has no body to parse.
+    if (response.redirected) {
+        return { redirected: true, url: response.url };
+    }
+
+    // 204 No Content responses have no body to parse.
     if (response.status === 204) return null;
     return response.json();
 }

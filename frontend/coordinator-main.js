@@ -182,11 +182,14 @@ user.username = userDetails.first_name + " " + userDetails.last_name;
 
 const logout = document.getElementById("logout");
 logout.addEventListener("click", async function(event) {
-    // Implement logout functionality here
-    console.log("Logout clicked");
-    const response = await fetch("/api/logout", {method: 'POST'});
-    if (response.redirected) {
-        window.location.replace(response.url);
+    try {
+        const response = await fetch("/api/logout", {method: "POST"});
+        if (!response.ok) {
+            throw new Error(`Logout failed with status ${response.status}.`);
+        }
+        window.location.replace(response.redirected ? response.url : "/login");
+    } catch (error) {
+        console.error("Failed to sign out:", error);
     }
 });
 
