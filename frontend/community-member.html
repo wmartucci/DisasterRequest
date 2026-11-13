@@ -69,6 +69,19 @@
 .status-chip.help-pending { background: transparent; }
 .tab-note { margin: 0 0 10px; }
 
+#post-composer summary {
+  color: #004b72;
+  cursor: pointer;
+  font-size: 18px;
+  font-weight: 700;
+}
+
+.post-composer-fields {
+  display: grid;
+  gap: 18px;
+  margin-top: 16px;
+}
+
 /* Log out button inside the nav bar (the nav styles buttons as plain text) */
 .navigation .actor-bar .secondary-button {
   padding: 8px 14px;
@@ -99,46 +112,28 @@ body {
   color: var(--text);
 }
 
-.hero {
-  background: #004b72;
-  border-bottom: 0;
-}
-
-.hero-inner {
-  padding-block: 30px;
-}
-
-.hero h1 {
-  margin-bottom: 12px;
-  font-size: clamp(24px, 3vw, 40px);
-}
-
-.hero .eyebrow,
-.hero h1 span {
-  color: #b9dcff;
-}
-
-.hero h1,
-.hero h1 span {
-  color: #b9dcff;
-}
-
-.hero-inner > div:first-child > p:last-child {
-  color: #e2edf4;
+.navigation .community-dashboard-title {
+  align-self: center;
+  margin: 0 18px 0 0;
+  color: #ffffff;
+  font-size: 18px;
+  line-height: 1.2;
+  white-space: nowrap;
 }
 
 .navigation {
-  background: #003b5c;
-  border-bottom: 3px solid #b9dcff;
+  background: #004b72;
+  border-bottom: 3px solid #004b72;
 }
 
 .navigation button {
-  color: #e2edf4;
+  color: #ffffff;
 }
 
 .navigation button:hover {
-  background: #145a7c;
+  background: #004b72;
   color: #ffffff;
+  filter: brightness(1.15);
 }
 
 .navigation button[aria-current="page"] {
@@ -147,13 +142,14 @@ body {
 }
 
 .navigation .actor-bar .secondary-button {
-  border-color: #b9dcff;
+  border-color: #ffffff;
   background: transparent;
   color: #ffffff;
 }
 
 .navigation .actor-bar .secondary-button:hover {
-  background: #145a7c;
+  background: #004b72;
+  filter: brightness(1.15);
 }
 
 .navigation #account-name {
@@ -175,7 +171,8 @@ body {
 }
 
 .primary-button:hover {
-  background: #00618f;
+  background: #004b72;
+  filter: brightness(1.15);
 }
 
 .secondary-button {
@@ -226,7 +223,7 @@ textarea::placeholder {
 .message {
   border-color: #a6c6d6;
   background: #e6f1f7;
-  color: #17435a;
+  color: #004b72;
 }
 
 .message.success {
@@ -261,21 +258,12 @@ footer {
 <body>
   <a href="#main" class="skip-link">Skip to content</a>
 
-  <header class="hero">
-    <div class="hero-inner">
-      <div>
-        <p class="eyebrow">COMMUNITY RESPONSE HUB / RESIDENT VIEW</p>
-        <h1>Tell us what happened.<br />We’ll track it with you<span>.</span></h1>
-        <p>Report an incident, follow its progress, and talk with your neighbors.</p>
-      </div>
-    </div>
-  </header>
-
   <nav class="navigation" aria-label="Community member navigation">
     <div class="nav-inner">
-      <button data-screen="reports">My reports</button>
-      <button data-screen="report">Report an incident</button>
-      <button data-screen="board">Community board</button>
+      <h1 class="community-dashboard-title">Community Member Dashboard</h1>
+      <button data-screen="reports">My Reports</button>
+      <button data-screen="report">Report An Incident</button>
+      <button data-screen="board">Community Forum</button>
 
       <!-- Always visible, so people can sign out even if a page request fails. -->
       <div id="account" class="actor-bar">
@@ -400,16 +388,20 @@ footer {
       </div>
 
       <form id="post-form" class="panel">
-        <h3>Write a post</h3>
-        <label>
-          Title
-          <input name="post_title" required maxlength="50" />
-        </label>
-        <label>
-          Message
-          <textarea name="post_content" required maxlength="3000" rows="3"></textarea>
-        </label>
-        <button type="submit" class="primary-button">Post</button>
+        <details id="post-composer">
+          <summary>Write a post</summary>
+          <div class="post-composer-fields">
+            <label>
+              Title
+              <input name="post_title" required maxlength="50" />
+            </label>
+            <label>
+              Message
+              <textarea name="post_content" required maxlength="3000" rows="3"></textarea>
+            </label>
+            <button type="submit" class="primary-button">Post</button>
+          </div>
+        </details>
       </form>
 
       <p id="board-count" class="muted" aria-live="polite"></p>

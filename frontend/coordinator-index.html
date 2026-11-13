@@ -106,30 +106,48 @@
                     Delete
                 </calcite-button>
             </calcite-dialog>
+            <calcite-dialog id="resource-request-dialog" modal heading="Request Resources">
+                <p id="resource-request-unit"></p>
+                <label class="resource-request-choice">
+                    <input id="request-resources-toggle" type="checkbox">
+                    I'd like to request resources to go with this help request.
+                </label>
+                <div id="resource-request-editor" hidden>
+                    <div id="resource-request-rows"></div>
+                    <calcite-button id="add-resource-request-button" appearance="outline" scale="s">
+                        Add another resource
+                    </calcite-button>
+                </div>
+                <p class="resource-request-note">Resource requests are not saved yet.</p>
+                <calcite-button id="resource-request-cancel-button" slot="footer-end" appearance="outline">
+                    Cancel
+                </calcite-button>
+                <calcite-button id="resource-request-ok-button" slot="footer-end">
+                    OK
+                </calcite-button>
+            </calcite-dialog>
         </div>
         <div id="help-requests" class="dashboard-section" hidden>
             <div id="requests-layout-grid">
                 <div id="requests-list">
-                    <h3 id="request-list-heading">Help Requests</h3>
+                    <div id="request-list-heading-bar">
+                        <h3 id="request-list-heading">Help Requests</h3>
+                        <button id="filter-my-requests-button" type="button" aria-label="Show my help requests" title="Show my help requests" aria-pressed="false">
+                            <calcite-icon id="filter-my-requests-icon" icon="star"></calcite-icon>
+                        </button>
+                        <button id="sort-help-requests-button" type="button" aria-label="Sort help requests by time descending" title="Sort help requests by time descending">
+                            <calcite-icon id="sort-help-requests-icon" icon="sort-descending"></calcite-icon>
+                        </button>
+                    </div>
                     <calcite-list id="requests-list-group" selection-mode="single" selection-appearance="highlight">
                     </calcite-list>
                 </div>
                 
                 <div id="requests-details">
-                    <h3 id="request-details-heading">Requests Details</h3>
-                    <calcite-accordion selection-mode="multiple">
-                        <calcite-accordion-item heading="Request Status">
-                            <p>Pending help requests go here.</p>
-                        </calcite-accordion-item>
-
-                        <calcite-accordion-item heading="Incident Details">
-                            <p>Active requests go here.</p>
-                        </calcite-accordion-item>
-
-                        <calcite-accordion-item heading="Assigned Response Unit Details">
-                            <p>Completed requests go here.</p>
-                        </calcite-accordion-item>
-                    </calcite-accordion>
+                    <h3 id="request-details-heading">Request Details</h3>
+                    <div id="request-details-content" class="empty">
+                        <p>Select a help request to view its details.</p>
+                    </div>
                 </div>
 
                 <div id="chart-details">
@@ -146,28 +164,29 @@
 
                 <div id="resource-details">
                     <h3 id="resource-details-heading">Resources Overview</h3>
-                    <calcite-table caption="Help Requests" bordered striped>
+                    <calcite-table id="resource-overview-table" caption="Resources Overview" bordered striped>
                         <calcite-table-row slot="table-header">
-                            <calcite-table-header heading="ID"></calcite-table-header>
-                            <calcite-table-header heading="Incident"></calcite-table-header>
-                            <calcite-table-header heading="Status"></calcite-table-header>
-                            <calcite-table-header heading="Actions"></calcite-table-header>
-                        </calcite-table-row>
-
-                        <calcite-table-row>
-                            <calcite-table-cell>101</calcite-table-cell>
-                            <calcite-table-cell>Flood</calcite-table-cell>
-                            <calcite-table-cell>
-                                <calcite-chip color="warning">Pending</calcite-chip>
-                            </calcite-table-cell>
-                            <calcite-table-cell>
-                                <calcite-button scale="s">View</calcite-button>
-                            </calcite-table-cell>
+                            <calcite-table-header heading="Resource"></calcite-table-header>
+                            <calcite-table-header heading="Type"></calcite-table-header>
+                            <calcite-table-header heading="Quantity"></calcite-table-header>
+                            <calcite-table-header heading="Available"></calcite-table-header>
                         </calcite-table-row>
                     </calcite-table>
                 </div>
-                
             </div>
+            <calcite-dialog id="delete-help-request-dialog" modal heading="Delete Help Request">
+                <p id="delete-help-request-message"></p>
+                <calcite-notice open icon="exclamation-mark-triangle" width="full">
+                    <div slot="message">This operation cannot be undone.</div>
+                </calcite-notice>
+                <p id="delete-help-request-error" role="alert"></p>
+                <calcite-button id="cancel-delete-help-request-button" slot="footer-end" appearance="outline">
+                    Cancel
+                </calcite-button>
+                <calcite-button id="confirm-delete-help-request-button" slot="footer-end" kind="danger">
+                    Delete
+                </calcite-button>
+            </calcite-dialog>
         </div>
     </calcite-shell>
 </body>

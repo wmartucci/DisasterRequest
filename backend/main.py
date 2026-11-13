@@ -111,6 +111,11 @@ class ResetConfirm(BaseModel):
     token: str = Field(min_length=1, max_length=200)
     new_password: str = Field(min_length=8)
 
+class RequestedResource(BaseModel):
+    resource_name: str = Field(min_length=1)
+    resource_type: Literal["Food", "Water", "Medical Supplies", "Shelter", "Services", "Other"]
+    quantity: int = Field(ge=0)
+
 # --------- Dependencies -------------
 def get_current_user(request: Request):
     print(request.session)
@@ -197,6 +202,10 @@ def incident_reports(report_id: int | None = Query(default=None, ge=1)) -> list[
     if report_id is None:
         return db.get_incident_reports()
     return db.search_incident_reports_by_id(report_id)
+
+@app.get("/api/incident-reports/{report_id}/creator")
+def report_creator(report_id: int) -> list[dict]:
+    return db.get_report_creator(report_id)
 
 
 # --------- UPDATE endpoints ----------
@@ -310,8 +319,17 @@ def confirm_password_reset(body: ResetConfirm):
 
 # Get current user details
 @app.get("/api/me")
-def user_details(user = Depends(get_current_user)):
+def user_details(request: Request, user = Depends(get_current_user)):
     user_info = db.get_user_details(user["user_id"])
+    if "role" in user_info:
+        if user_info["role"] == "Response Coordinator":
+            coordinator_id = db.get_coordinator_id(user_info["user_id"])[0]["coordinator_id"]
+            request.session["role_id"] = coordinator_id
+            user_info["role_id"] = coordinator_id
+        elif user_info["role"] == "Community Member":
+            community_member_id = db.get_community_member_id(user_info["user_id"])[0]["member_id"]
+            request.session["role_id"] = community_member_id
+
     return user_info
 
 # Get all incident reports - include GeoJSON y/n
@@ -332,13 +350,62 @@ def get_districts(include_counts: bool = False):
 def get_help_requests():
     return db.get_help_requests()
 
+@app.post("/api/help-requests")
+def create_help_request(report_id: int, unit_id: int) -> dict:
+    columns, rows = db.create_help_request(report_id, unit_id)
+    return dict(zip(columns, rows[0]))
+
+@app.put("/api/incidents/{report_id}/status")
+def update_incident_report_status(report_id: int, status: str) -> dict:
+    columns, rows = db.update_incident_report_status(report_id, status)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return dict(zip(columns, rows[0]))
+
+@app.put("/api/incidents/{report_id}/coordinator")
+def update_incident_report_coordinator(report_id: int, coordinator_id: int) -> dict:
+    columns, rows = db.update_incident_report_coordinator(report_id, coordinator_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Report not found")
+    return dict(zip(columns, rows[0]))
+
 @app.get("/api/help-requests/counts")
 def get_help_request_counts():
     return db.get_help_request_counts()
 
+@app.get("/api/help-requests/{coordinator_id}")
+def get_coordinator_help_requests(coordinator_id: int):
+    return db.get_help_requests(coordinator_id)
+
+@app.put("/api/help-requests/{request_id}/status")
+def update_help_request_status(request_id: int, status: str) -> dict:
+    columns, rows = db.update_help_request_status(request_id, status)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Help request not found")
+    return dict(zip(columns, rows[0]))
+
+@app.delete("/api/help-requests/{request_id}")
+def delete_help_request(request_id: int) -> dict:
+    columns, rows = db.delete_help_request(request_id)
+    if not rows:
+        raise HTTPException(status_code=404, detail="Help request not found")
+    return dict(zip(columns, rows[0]))
+
+
 @app.get("/api/resources")
 def get_resources():
     return db.get_resources()
+
+@app.post("/api/resources/request")
+def request_resources(request_id: int, resources: list[RequestedResource]):
+    columns, rows = db.create_resources(resources, request_id=request_id)
+    if resources and len(rows) != len(resources):
+        raise HTTPException(status_code=404, detail="Not all requested resources were created")
+    return [dict(zip(columns, row)) for row in rows]
+
+@app.get("/api/nearest-response-unit")
+def get_nearest_response_unit(long: float, lat: float):
+    return db.get_nearest_response_unit(long, lat)
 
 @app.get("/login")
 def login_page():

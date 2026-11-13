@@ -414,6 +414,14 @@ def get_incident_stats(district_id: int = None):
                                  WHERE d.district_id = {district_id}"""
     return run_query(query)
 
+def get_report_creator(report_id: int):
+    query = """SELECT u.first_name || ' ' || u.last_name AS creator
+               FROM incident_reports i
+               LEFT JOIN community_members m ON i.member_id = m.member_id
+               LEFT JOIN users u ON m.user_id = u.user_id
+               WHERE i.report_id = %s;"""
+    return run_query(query, params=(report_id,))
+
 def get_districts(include_counts = False):
     if not include_counts:
         result = run_query("""SELECT json_build_object(
@@ -459,18 +467,27 @@ def get_districts(include_counts = False):
         else:
             return result
 
-def get_help_requests():
-    return run_query("""SELECT h.request_id,
+def get_help_requests(coordinator_id=None):
+    query = """SELECT h.request_id,
                                h.report_id,
                                h.request_timestamp,
                                h.status AS request_status,
+                               i.coordinator_id,
                                i.type,
                                i.description,
                                i.report_timestamp,
-                               u.unit_name
+                               i.address,
+                               i.city,
+                               i.state,
+                               u.unit_name,
+                               u.unit_type
                         FROM help_requests h 
                         JOIN incident_reports i ON h.report_id = i.report_id 
-                        JOIN response_units u ON h.unit_id = u.unit_id""")
+                        JOIN response_units u ON h.unit_id = u.unit_id"""
+    if coordinator_id is not None:
+        query += " WHERE i.coordinator_id = %s"
+        return run_query(query, (coordinator_id,))
+    return run_query(query)
 
 def get_help_request_counts():
     return run_query("""SELECT status, COUNT(*)
@@ -478,4 +495,98 @@ def get_help_request_counts():
                         GROUP BY status""")
 
 def get_resources():
-    return run_query("""SELECT resource_name, resource_type, quantity FROM resources""")
+    return run_query(
+        """SELECT resource_name, resource_type, quantity, member_id
+           FROM resources;"""
+    )
+
+def get_nearest_response_unit(long, lat):
+    return run_query(
+        """SELECT *
+           FROM response_units
+           ORDER BY location <-> ST_SetSRID(ST_MakePoint(%s, %s), 4326)
+           LIMIT 1;""",
+        (long, lat),
+    )
+
+def create_help_request(report_id, unit_id):
+    return run_change_returning(
+        """INSERT INTO help_requests (report_id, unit_id, status)
+           VALUES (%s, %s, 'Pending')
+           RETURNING *;""",
+        (report_id, unit_id),
+    )
+
+def delete_help_request(request_id):
+    return run_change_returning(
+        """DELETE FROM help_requests
+           WHERE request_id = %s
+           RETURNING *;""",
+        (request_id,),
+    )
+
+def update_help_request_status(request_id, status):
+    return run_change_returning(
+        """UPDATE help_requests
+           SET status = %s
+           WHERE request_id = %s
+           RETURNING *;""",
+        (status, request_id),
+    )
+
+def update_incident_report_status(report_id, status):
+    return run_change_returning(
+        """UPDATE incident_reports
+           SET status = %s
+           WHERE report_id = %s
+           RETURNING *;""",
+        (status, report_id),
+    )
+
+def update_incident_report_coordinator(report_id, coordinator_id):
+    return run_change_returning(
+        """UPDATE incident_reports
+           SET coordinator_id = %s
+           WHERE report_id = %s
+           RETURNING *;""",
+        (coordinator_id, report_id),
+    )
+
+def get_coordinator_id(user_id):
+    return run_query(
+        """SELECT coordinator_id
+           FROM response_coordinators
+           WHERE user_id = %s;""",
+        (user_id,),
+    )
+
+def get_community_member_id(user_id):
+    return run_query(
+        """SELECT member_id
+           FROM community_members
+           WHERE user_id = %s;""",
+        (user_id,),
+    )
+
+def create_resources(resources, member_id=None, request_id=None):
+    if not resources:
+        return [], []
+
+    values_sql = ", ".join(["(%s, %s, %s, %s, %s)"] * len(resources))
+    params = [
+        value
+        for resource in resources
+        for value in (
+            resource.resource_name,
+            resource.resource_type,
+            resource.quantity,
+            request_id,
+            member_id,
+        )
+    ]
+    return run_change_returning(
+        f"""INSERT INTO resources (resource_name, resource_type, quantity, request_id, member_id)
+            VALUES {values_sql}
+            RETURNING *;""",
+        params,
+    )

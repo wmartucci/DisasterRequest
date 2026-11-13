@@ -6,8 +6,8 @@
   --border: #d5dde0;
   --text: #0b0f10;
   --muted: #55646a;
-  --teal: #5eead4;          /* same accent as index.html */
-  --teal-strong: #0f766e;   /* darker teal for text on white (readable contrast) */
+  --teal: #004b72;
+  --teal-strong: #004b72;
   --error-bg: #fdf0f2;
   --error-border: #d98a99;
   --error-text: #8a1c33;
@@ -136,7 +136,7 @@ main {
 .tabs button:hover { color: var(--text); background: #e9eef0; }
 .tabs button[aria-selected="true"] {
   background: var(--teal);
-  color: #071b1a;
+  color: #ffffff;
 }
 
 .panel h2 {
@@ -207,10 +207,10 @@ input:focus, select:focus { border-color: var(--teal-strong); }
 .primary-button {
   flex: 1;
   background: var(--teal);
-  color: #071b1a;
+  color: #ffffff;
   font-weight: 700;
 }
-.primary-button:hover { background: #8cf3e1; }
+.primary-button:hover { background: #00618a; }
 
 .secondary-button {
   background: #ffffff;

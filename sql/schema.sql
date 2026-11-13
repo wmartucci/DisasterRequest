@@ -130,10 +130,10 @@ CREATE TABLE resources (
         CONSTRAINT resource_request_fk
         REFERENCES help_requests(request_id)
         ON DELETE SET NULL,
-    member_id INTEGER NOT NULL
+    member_id INTEGER
         CONSTRAINT resource_member_fk
         REFERENCES community_members(member_id)
-        ON DELETE SET NULL
+        ON DELETE CASCADE
 );
 
 CREATE TABLE password_reset_tokens(
