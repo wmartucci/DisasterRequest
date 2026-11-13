@@ -45,6 +45,35 @@ async function loadIncidentReportStats({district_id = null} = {}) {
 }
 
 let districtReport = "report";
+let incidentSortAscending = false;
+
+const sortIncidentsButton = document.getElementById("sort-incidents-button");
+const sortIncidentsIcon = document.getElementById("sort-incidents-icon");
+
+function sortIncidentList() {
+    const list = document.getElementById("list-group");
+    const items = [...list.querySelectorAll("calcite-list-item")];
+    items.sort((a, b) => {
+        const timeA = new Date(a.value.attributes.report_timestamp).getTime();
+        const timeB = new Date(b.value.attributes.report_timestamp).getTime();
+        return incidentSortAscending ? timeA - timeB : timeB - timeA;
+    });
+    list.replaceChildren(...items);
+}
+
+function updateIncidentSortControl() {
+    sortIncidentsButton.hidden = districtReport !== "report";
+    const direction = incidentSortAscending ? "ascending" : "descending";
+    sortIncidentsButton.setAttribute("aria-label", `Sort incidents by time ${direction}`);
+    sortIncidentsButton.title = `Sort incidents by time ${direction}`;
+    sortIncidentsIcon.icon = incidentSortAscending ? "sort-ascending" : "sort-descending";
+}
+
+sortIncidentsButton.addEventListener("click", () => {
+    incidentSortAscending = !incidentSortAscending;
+    updateIncidentSortControl();
+    sortIncidentList();
+});
 
 async function loadList(layer) {
     const layerFeatures = await layer.queryFeatures({
@@ -58,6 +87,7 @@ async function loadList(layer) {
 
     const heading = document.getElementById("list-heading");
 
+    updateIncidentSortControl();
 
     if (districtReport === "report") {
         heading.textContent = "Incidents";
@@ -101,6 +131,7 @@ async function loadList(layer) {
             item.appendChild(timestamp);
             list.appendChild(item);
         });
+        sortIncidentList();
     }
     else {
         heading.textContent = "Districts";
@@ -151,11 +182,15 @@ user.username = userDetails.first_name + " " + userDetails.last_name;
 
 const logout = document.getElementById("logout");
 logout.addEventListener("click", async function(event) {
-    // Implement logout functionality here
-    console.log("Logout clicked");
-    // /api/logout clears the session and returns 204, so navigate ourselves.
-    await fetch("/api/logout", {method: 'POST'});
-    window.location.replace("/login");
+    try {
+        const response = await fetch("/api/logout", {method: "POST"});
+        if (!response.ok) {
+            throw new Error(`Logout failed with status ${response.status}.`);
+        }
+        window.location.replace(response.redirected ? response.url : "/login");
+    } catch (error) {
+        console.error("Failed to sign out:", error);
+    }
 });
 
 const mapElement = document.querySelector("arcgis-map");
@@ -313,6 +348,14 @@ function getColorScheme(label) {
             return ["Green 4", false];
         case "Flood":
             return ["Blue 3", false];
+        case "Pending Assistance":
+            return ["Red 3", false];
+        case "Help Requested":
+            return ["Orange 2", false];
+        case "Unit in Response":
+            return ["Esri Yellow 1", true];
+        case "Resolved":
+            return ["Green 4", false];
         default:
             return ["Gray 1", false];
     }
@@ -499,12 +542,51 @@ statusTypeSwitch.addEventListener("click", async function(event) {
 let highlightHandle;
 let incidentHighlight = null;
 let districtHighlight = null;
+let selectedReportId = null;
+let selectedReportAttributes = null;
+let syncingDistrictListSelection = false;
+
+function selectDistrictListItem(districtId) {
+    const listItems = document.querySelectorAll("#list-group calcite-list-item");
+    syncingDistrictListSelection = true;
+    try {
+        listItems.forEach(item => {
+            const isSelected = districtId != null &&
+                String(item.value?.attributes?.district_id) === String(districtId);
+            item.selected = isSelected;
+            if (isSelected) item.scrollIntoView({behavior: "smooth", block: "center"});
+        });
+    } finally {
+        syncingDistrictListSelection = false;
+    }
+}
+
+function clearSelectedDistrict(clearList = true) {
+    districtHighlight?.remove();
+    districtHighlight = null;
+    selectedDistrict = null;
+    if (clearList) selectDistrictListItem(null);
+}
+
+function clearSelectedReport() {
+    incidentHighlight?.remove();
+    incidentHighlight = null;
+    selectedReportId = null;
+    selectedReportAttributes = null;
+    document.getElementById("help-request-action-button").textContent = "Create Request";
+
+    selectDistrictListItem(null);
+
+    document.getElementById("report-details-card").classList.add("empty");
+    document.getElementById("report-details-text").textContent = "Select a report from the list or map to view its details.";
+    document.getElementById("report-details-image").removeAttribute("src");
+}
 
 const districtReportSwitch = document.getElementById("district-report-switch");
 districtReportSwitch.addEventListener("click", async function(event) {
     districtReport = districtReport === "district" ? "report" : "district";
-    incidentHighlight?.remove();
-    incidentHighlight = null;
+    clearSelectedReport();
+    clearSelectedDistrict();
     await updateMapAndTable();
     await updateIncidentStats();
 });
@@ -535,8 +617,15 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
     // Highlight selected incident on map and table and update information card
     if (layer.id === "incidents") {
+        const reportId = result.graphic.attributes.report_id;
+        if (selectedReportId === reportId) {
+            clearSelectedReport();
+            return;
+        }
+
         incidentHighlight?.remove();
         incidentHighlight = layerView.highlight(result.graphic, {"name": "incident"});
+        selectedReportId = reportId;
         const objectId = result.graphic.getObjectId();
 
         const list = document.getElementById("list-group");
@@ -548,6 +637,8 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const reportDetails = document.getElementById("report-details-text");
         const reportAttributes = result.graphic.attributes;
+        selectedReportAttributes = reportAttributes;
+        updateHelpRequestActionButton(reportAttributes);
         document.getElementById("report-details-card").classList.remove("empty");
         const text = `<strong>Type</strong>: ${reportAttributes.type}
 
@@ -558,8 +649,6 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
 
         const image = document.getElementById("report-details-image");
         image.src = reportAttributes.image_url;
-        const deleteReportID = document.getElementById("delete-report-id");
-        deleteReportID.value = String(reportAttributes.report_id);
     }
     // Highlight selected district on map
     else if (layer.id === "districts") {
@@ -591,12 +680,12 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             selectedDistrict = currentSelectedDistrict;
             
             await incidentsInDistrictLayer.load();
+            await loadList(incidentsInDistrictLayer);
             await updateIncidentStats(currentSelectedDistrict);
-            selectedDistrict = currentSelectedDistrict;
         }
         // Remove highlight from district if clicked again, reload all incidents
         else {
-            districtHighlight?.remove();
+            clearSelectedDistrict();
 
             const incidentsInDistrict = await loadIncidentReports({type: type, status: status, as_geojson: true});
             const incidentsInDistrictLayer = geoJSONtoLayer(incidentsInDistrict, "incidents", "Incident Reports");
@@ -607,9 +696,9 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             mapElement.map.add(incidentsInDistrictLayer);
 
             activeLayer = incidentsInDistrictLayer;
-            selectedDistrict = null;
             
             await incidentsInDistrictLayer.load();
+            await loadList(incidentsInDistrictLayer);
             await updateIncidentStats();
         }
     }
@@ -632,25 +721,49 @@ mapElement.addEventListener("arcgisViewClick", async (event) => {
             incidentHighlight = null;
 
             selectedDistrict = currentSelectedDistrict;
+            selectDistrictListItem(currentSelectedDistrict);
+            await updateIncidentStats(currentSelectedDistrict);
         }
         // Remove highlight from previously highlighted district
         else {
-            districtHighlight?.remove();
-            selectedDistrict = null;
+            clearSelectedDistrict();
+            await updateIncidentStats();
         }
     }
 });
 
+const deleteDialog = document.getElementById("delete-dialog");
 const deleteButton = document.getElementById("delete-report-button");
 deleteButton.addEventListener("click", function(event) {
-    const deleteDialog = document.getElementById("delete-dialog");
+    if (selectedReportId == null || selectedReportAttributes == null) return;
+
+    const reportDetails = document.getElementById("delete-report-details");
+    reportDetails.replaceChildren();
+    [
+        ["Type", selectedReportAttributes.type],
+        ["Address", selectedReportAttributes.address],
+        ["Status", selectedReportAttributes.status],
+        ["Description", selectedReportAttributes.description]
+    ].forEach(([label, value]) => {
+        const row = document.createElement("p");
+        const labelElement = document.createElement("strong");
+        labelElement.textContent = `${label}: `;
+        row.append(labelElement, document.createTextNode(value ?? "Not provided"));
+        reportDetails.appendChild(row);
+    });
     deleteDialog.open = true;
+});
+
+["dialog-back-button", "dialog-cancel-button"].forEach(buttonId => {
+    document.getElementById(buttonId).addEventListener("click", function() {
+        deleteDialog.open = false;
+    });
 });
 
 const dialogDeleteButton = document.getElementById("dialog-delete-button");
 dialogDeleteButton.addEventListener("click", function(event) {
-    const reportToDelete = document.getElementById("delete-report-id").value;
-    let reportID = parseInt(reportToDelete);
+    if (selectedReportId == null) return;
+    const reportID = selectedReportId;
 
     fetch(`http://127.0.0.1:8000/api/incident-reports/${reportID}`, {
         method: "DELETE"
@@ -665,12 +778,33 @@ dialogDeleteButton.addEventListener("click", function(event) {
     })
     .catch(error => console.error("Error:", error));
 
-    const deleteDialog = document.getElementById("delete-dialog");
     deleteDialog.open = false;
 })
 
 const list = document.getElementById("list-group");
 list.addEventListener("calciteListItemSelect", async function(event) {
+    if (syncingDistrictListSelection) return;
+
+    if (districtReport === "district") {
+        const item = event.target;
+        if (!item.selected) {
+            if (String(item.value?.attributes?.district_id) === String(selectedDistrict)) {
+                clearSelectedDistrict(false);
+            }
+            return;
+        }
+
+        const feature = item.value;
+        const districtId = feature.attributes.district_id;
+        districtHighlight?.remove();
+        const layerView = await mapView.whenLayerView(activeLayer);
+        districtHighlight = layerView.highlight(feature, {"name": "district"});
+        selectedDistrict = districtId;
+        return;
+    }
+
+    if (districtReport !== "report") return;
+
     const feature = event.target.value;
     console.log("Selected");
     console.log(feature);
@@ -678,10 +812,13 @@ list.addEventListener("calciteListItemSelect", async function(event) {
     const layerView = await mapView.whenLayerView(activeLayer);
     incidentHighlight?.remove();
     incidentHighlight = layerView.highlight(feature, {"name": "incident"});
+    selectedReportId = feature.attributes.report_id;
     console.log(incidentHighlight);
 
     const reportDetails = document.getElementById("report-details-text");
     const reportAttributes = feature.attributes;
+    selectedReportAttributes = reportAttributes;
+    updateHelpRequestActionButton(reportAttributes);
     document.getElementById("report-details-card").classList.remove("empty");
     const text = `<strong>Type</strong>: ${reportAttributes.type}
 
@@ -692,87 +829,159 @@ list.addEventListener("calciteListItemSelect", async function(event) {
 
     const image = document.getElementById("report-details-image");
     image.src = reportAttributes.image_url;
-    const deleteReportID = document.getElementById("delete-report-id");
-    deleteReportID.value = String(reportAttributes.report_id);
 });
 
 
-
-const helpRequestsList = document.getElementById("requests-list-group");
-const helpRequestsResponse = await fetch("/api/help-requests");
-const helpRequests = await helpRequestsResponse.json();
-helpRequests.forEach(request => {
-    console.log(request);
-    const item = document.createElement("calcite-list-item");
-    item.label = request.request_status;
-    item.description = request.request_timestamp;
-    item.value = request;
-
-    const content = document.createElement("div");
-    content.slot = "content";
-    content.innerHTML = `
-        <strong>${request.type}</strong> | ${request.request_status}
-    `;
-    item.appendChild(content);
-    const icon = document.createElement("calcite-icon");
-    icon.icon = "star";
-    icon.slot = "content-start";
-    item.appendChild(icon);
-    const timestamp = document.createElement("span");
-    timestamp.slot = "content-end";
-    const time = new Date(request.request_timestamp);
-    timestamp.textContent = time.toLocaleString();
-    item.appendChild(icon);
-    item.appendChild(timestamp);
-    helpRequestsList.appendChild(item);
-});
 
 const menuItems = document.querySelectorAll("calcite-menu-item[data-section]");
 const sections = document.querySelectorAll(".dashboard-section");
 
-menuItems.forEach(item => {
-    item.addEventListener('click', () => {
-        const target = item.dataset.section;
-        sections.forEach(section => {
-            section.hidden = section.id !== target;
-        });
+let helpRequestsLoaded = false;
+let helpRequestsLoadPromise = null;
 
-        menuItems.forEach(menuItem => {
-            menuItem.active = menuItem === item;
-        });
+function updateHelpRequestActionButton(reportAttributes) {
+    const button = document.getElementById("help-request-action-button");
+    button.textContent = reportAttributes.status === "Pending Assistance"
+        ? "Create Request"
+        : "View Request";
+}
+
+async function loadHelpRequests() {
+    const [requestsResponse, countsResponse] = await Promise.all([
+        fetch("/api/help-requests"),
+        fetch("/api/help-requests/counts")
+    ]);
+    if (!requestsResponse.ok || !countsResponse.ok) {
+        throw new Error("Unable to load help requests.");
+    }
+
+    const [helpRequests, helpRequestsCounts] = await Promise.all([
+        requestsResponse.json(),
+        countsResponse.json()
+    ]);
+
+    const helpRequestsList = document.getElementById("requests-list-group");
+    helpRequestsList.replaceChildren();
+    helpRequests.forEach(request => {
+        const item = document.createElement("calcite-list-item");
+        item.label = request.request_status;
+        item.description = request.request_timestamp;
+        item.value = request;
+
+        const content = document.createElement("div");
+        content.slot = "content";
+        content.innerHTML = `
+            <strong>${request.type}</strong> | ${request.request_status}
+        `;
+        item.appendChild(content);
+        const icon = document.createElement("calcite-icon");
+        icon.icon = "star";
+        icon.slot = "content-start";
+        item.appendChild(icon);
+        const timestamp = document.createElement("span");
+        timestamp.slot = "content-end";
+        timestamp.textContent = new Date(request.request_timestamp).toLocaleString();
+        item.appendChild(timestamp);
+        helpRequestsList.appendChild(item);
     });
-});
 
-const helpRequestsCountsResponse = await fetch("/api/help-requests/counts");
-const helpRequestsCounts = await helpRequestsCountsResponse.json();
-console.log(helpRequestsCounts);
-
-const chart = new Chart(
-    document.getElementById("helpRequestCountsChart"),
-    {
-        type: "doughnut",
-        data: {
-            labels: ["Pending", "In Progress", "Completed"],
-            datasets: [{
-                data: [helpRequestsCounts[0]["count"], helpRequestsCounts[1]["count"], helpRequestsCounts[2]["count"]],
-                backgroundColor: ["#bc2938", "#e4ad05", "#21903b"],
-                borderWidth: 0
-            }]
-        },
-        options: {
-            responsive: true,
-            maintainAspectRatio: false,
-            cutout: "65%",
-            radius: "70%",
-            plugins: {
-                legend: {
-                    position: "left",
-                    labels: {
-                        boxWidth: 12,
-                        padding: 8
+    new Chart(
+        document.getElementById("helpRequestCountsChart"),
+        {
+            type: "doughnut",
+            data: {
+                labels: ["Pending", "In Progress", "Completed"],
+                datasets: [{
+                    data: [helpRequestsCounts[0]["count"], helpRequestsCounts[1]["count"], helpRequestsCounts[2]["count"]],
+                    backgroundColor: ["#bc2938", "#e4ad05", "#21903b"],
+                    borderWidth: 0
+                }]
+            },
+            options: {
+                responsive: true,
+                maintainAspectRatio: false,
+                cutout: "65%",
+                radius: "70%",
+                plugins: {
+                    legend: {
+                        position: "left",
+                        labels: {
+                            boxWidth: 12,
+                            padding: 8
+                        }
                     }
                 }
             }
         }
+    );
+    helpRequestsLoaded = true;
+}
+
+async function ensureHelpRequestsLoaded() {
+    if (helpRequestsLoaded) return true;
+    if (helpRequestsLoadPromise) return helpRequestsLoadPromise;
+
+    const heading = document.getElementById("request-list-heading");
+    helpRequestsLoadPromise = (async () => {
+        try {
+            heading.textContent = "Loading Help Requests...";
+            await loadHelpRequests();
+            heading.textContent = "Help Requests";
+            return true;
+        }
+        catch (error) {
+            console.error("Failed to load help requests:", error);
+            heading.textContent = "Unable to load Help Requests";
+            const errorItem = document.createElement("calcite-list-item");
+            errorItem.label = "Could not load help requests";
+            errorItem.description = "Select this tab again to retry.";
+            document.getElementById("requests-list-group").replaceChildren(errorItem);
+            return false;
+        }
+        finally {
+            helpRequestsLoadPromise = null;
+        }
+    })();
+
+    return helpRequestsLoadPromise;
+}
+
+async function showDashboardSection(target) {
+    sections.forEach(section => {
+        section.hidden = section.id !== target;
+    });
+    menuItems.forEach(menuItem => {
+        menuItem.active = menuItem.dataset.section === target;
+    });
+
+    if (target === "help-requests") {
+        return ensureHelpRequestsLoaded();
     }
-);
+    return true;
+}
+
+menuItems.forEach(item => {
+    item.addEventListener('click', async () => {
+        await showDashboardSection(item.dataset.section);
+    });
+});
+
+document.getElementById("help-request-action-button").addEventListener("click", async () => {
+    if (!selectedReportAttributes || selectedReportAttributes.status === "Pending Assistance") return;
+
+    const loaded = await showDashboardSection("help-requests");
+    if (!loaded) return;
+
+    const requestList = document.getElementById("requests-list-group");
+    const requestItem = [...requestList.querySelectorAll("calcite-list-item")]
+        .find(item => String(item.value?.report_id) === String(selectedReportId));
+    if (!requestItem) {
+        console.warn(`No help request found for report ${selectedReportId}.`);
+        return;
+    }
+
+    requestList.querySelectorAll("calcite-list-item").forEach(item => {
+        item.selected = item === requestItem;
+    });
+    requestItem.scrollIntoView({behavior: "smooth", block: "center"});
+});

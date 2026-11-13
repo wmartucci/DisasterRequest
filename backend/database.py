@@ -316,9 +316,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":
                 print("COORDINATOR INSERT ->", first_name, last_name, tel_no, email)
-                cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email) "
-                        "VALUES (%s, %s, %s, %s) RETURNING *;",
-                        (first_name, last_name, tel_no, email),
+                cur.execute("INSERT INTO response_coordinators (first_name, last_name, tel_no, email, user_id) "
+                        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
+                        (first_name, last_name, tel_no, email, user_id),
                     )
             # 2.2 Create the matching row for the user's role
             if role == "Admin":
