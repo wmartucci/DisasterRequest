@@ -34,7 +34,8 @@ def reports_for_member(member_id):
                   u.unit_name,
                   h.status AS help_request_status
            FROM incident_reports i
-           LEFT JOIN response_coordinators c ON c.coordinator_id = i.coordinator_id
+           LEFT JOIN response_coordinators rc ON rc.coordinator_id = i.coordinator_id
+           LEFT JOIN users c ON c.user_id = rc.user_id
            LEFT JOIN help_requests h ON h.report_id = i.report_id
            LEFT JOIN response_units u ON u.unit_id = h.unit_id
            WHERE i.member_id = %s
