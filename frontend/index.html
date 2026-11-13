@@ -5,7 +5,7 @@
   <meta name="viewport" content="width=device-width, initial-scale=1" />
   <meta name="color-scheme" content="dark" />
   <title>Disaster Response</title>
-  <link rel="stylesheet" href="style.css" />
+  <link rel="stylesheet" href="/assets/style.css" />
 </head>
 
 <!--
@@ -33,25 +33,25 @@
   </main>
 
   <script type="module">
-    import { getCurrentUser, logout } from "./api.js";
+    import { getCurrentUser, logout } from "/assets/api.js";
 
     // Keep in sync with ROLE_HOME in login.html.
     const ROLE_HOME = {
-      "Community Member": "community-member.html",
-      "Response Coordinator": "coordinator-index.html",
+      "Community Member": "/community-member",
+      "Response Coordinator": "/coordinator",
     };
 
     const $ = (selector) => document.querySelector(selector);
 
     $("#logout").addEventListener("click", async () => {
       try { await logout(); } catch { /* leave anyway */ }
-      window.location.replace("login.html");
+      window.location.replace("/login");
     });
 
     try {
       const user = await getCurrentUser();
       if (!user) {
-        window.location.replace("login.html");
+        window.location.replace("/login");
       } else if (ROLE_HOME[user.role]) {
         window.location.replace(ROLE_HOME[user.role]);
       } else {
@@ -62,7 +62,7 @@
       }
     } catch (error) {
       if (error.status === 401 || error.status === 403) {
-        window.location.replace("login.html");
+        window.location.replace("/login");
       } else {
         $("#status").hidden = true;
         $("#error").textContent = error.message;

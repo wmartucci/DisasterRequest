@@ -6,7 +6,7 @@
   <meta name="color-scheme" content="light" />
   <title>Disaster Response | Sign in</title>
 
-  <link rel="stylesheet" href="assets/auth.css" />
+  <link rel="stylesheet" href="/assets/auth.css" />
 </head>
 
 <body>
@@ -220,15 +220,14 @@
   </noscript>
 
   <script type="module">
-    const apiModule = location.pathname === "/login" ? "/assets/api.js" : "./api.js";
-    const { login, signup, getCurrentUser, requestPasswordReset } = await import(apiModule);
+    import { login, signup, getCurrentUser, requestPasswordReset } from "/assets/api.js";
 
     // Where each role lands after logging in.
     const ROLE_HOME = {
-      "Community Member": "community-member",
-      "Response Coordinator": "coordinator",
-      "Responder": "index.html",
-      "Volunteer": "index.html",
+      "Community Member": "/community-member",
+      "Response Coordinator": "/coordinator",
+      "Responder": "/",
+      "Volunteer": "/",
     };
 
     const $ = (selector) => document.querySelector(selector);
@@ -238,7 +237,7 @@
     let busy = false;
 
     function goHome(role) {
-      window.location.replace(ROLE_HOME[role] ?? "index.html");
+      window.location.replace(ROLE_HOME[role] ?? "/");
     }
 
     function clearMessages() {

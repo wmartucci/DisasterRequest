@@ -309,9 +309,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
             
             # 2. Create the matching row for the user's role
             if role == "Community Member":
-                cur.execute("INSERT INTO community_members (street_address, city, state, tel_no, user_id) "
-                        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-                        (street_address, city, state, tel_no, user_id),
+                cur.execute("INSERT INTO community_members (street_address, city, state, user_id) "
+                        "VALUES (%s, %s, %s, %s) RETURNING *;",
+                        (street_address, city, state, user_id),
                     )
             # 2.1 Create the matching row for the user's role
             if role == "Response Coordinator":

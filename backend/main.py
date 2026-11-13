@@ -23,8 +23,8 @@ app = FastAPI(title="Disaster Request API", version="1.0.0")
 app.mount("/assets", StaticFiles(directory="frontend"), name="assets")
 password_hasher = PasswordHash.recommended()
 
-# Where the HTML pages are served. Live Server run from the repo root serves them under /frontend.
-FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:5500/frontend").rstrip("/")
+# Where the HTML pages are served. FastAPI serves them itself (see the page routes at the bottom).
+FRONTEND_BASE_URL = os.environ.get("FRONTEND_BASE_URL", "http://localhost:8000").rstrip("/")
 
 app.add_middleware(
     CORSMiddleware,
@@ -151,7 +151,7 @@ def current_member_id(user = Depends(require_roles("Community Member"))) -> int:
 # Build password reset link
 def build_reset_link(raw_token: str) -> str:
     query = urlencode({"token": raw_token})
-    return f"{FRONTEND_BASE_URL}/reset-password.html?{query}"
+    return f"{FRONTEND_BASE_URL}/reset-password?{query}"
 
 # Request password reset
 def issue_reset_and_email(email: str):
@@ -340,10 +340,22 @@ def get_help_request_counts():
 def get_resources():
     return db.get_resources()
 
+# Index page
+@app.get("/")
+def index_page():
+    return FileResponse("frontend/index.html")
+
+# Login page
 @app.get("/login")
 def login_page():
     return FileResponse("frontend/login.html")
 
+# Reset password page
+@app.get("/reset-password")
+def reset_password_page():
+    return FileResponse("frontend/reset-password.html")
+
+# Coordinator page
 @app.get("/coordinator")
 def coordinator(request: Request):
     print("/coordinator")
@@ -352,6 +364,7 @@ def coordinator(request: Request):
         return RedirectResponse(url="/login", status_code=303)
     return FileResponse("frontend/coordinator-index.html")
 
+# Community member page
 @app.get("/community-member")
 def community_member(request: Request):
     print("/community-member")

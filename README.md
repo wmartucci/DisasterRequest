@@ -136,22 +136,20 @@ Start the backend from the repository root:
 uvicorn backend.main:app --reload
 ```
 
-The API is available at <http://localhost:8000>.
+FastAPI serves both the API and the frontend pages, so no second server is
+needed. Open <http://localhost:8000> (or <http://localhost:8000/login>) in a
+browser. Don't open the HTML files with Live Server or `file://`: the pages
+load their CSS and JavaScript from `/assets/...` and call the API on the same
+origin, so they only work when served by Uvicorn.
 
-Serve the frontend from a second terminal. A static HTTP server is required
-because the frontend uses JavaScript modules:
-
-```bash
-cd frontend
-python -m http.server 5500
-```
-
-Open <http://localhost:5500> in a browser. The frontend is configured to call
-the API at `http://localhost:8000`.
-
-The backend permits requests from the local development origins
-`localhost:5500`, `127.0.0.1:5500`, `localhost:3000`, and
-`127.0.0.1:3000`.
+| URL | Page |
+| --- | --- |
+| `/` | `index.html`: sends the signed-in user to their role's page |
+| `/login` | Sign in / sign up |
+| `/reset-password` | Password reset form (linked from the reset email) |
+| `/community-member` | Community Member view (requires sign-in) |
+| `/coordinator` | Response Coordinator view (requires sign-in) |
+| `/assets/<file>` | Static files from `frontend/` |
 
 ## API documentation
 
@@ -223,8 +221,8 @@ application can load the environment files.
 Confirm that:
 
 1. Uvicorn is running on port `8000`.
-2. The frontend is being served over HTTP on port `5500` rather than opened
-   directly as a `file://` URL.
+2. The page was opened from Uvicorn (`http://localhost:8000/...`), not from
+   Live Server or as a `file://` URL.
 3. The database is reachable and the schema has been applied.
 4. The browser origin matches one of the origins allowed by the backend CORS
    configuration.

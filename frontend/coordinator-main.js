@@ -153,10 +153,9 @@ const logout = document.getElementById("logout");
 logout.addEventListener("click", async function(event) {
     // Implement logout functionality here
     console.log("Logout clicked");
-    const response = await fetch("/api/logout", {method: 'POST'});
-    if (response.redirected) {
-        window.location.replace(response.url);
-    }
+    // /api/logout clears the session and returns 204, so navigate ourselves.
+    await fetch("/api/logout", {method: 'POST'});
+    window.location.replace("/login");
 });
 
 const mapElement = document.querySelector("arcgis-map");
