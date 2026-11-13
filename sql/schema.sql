@@ -16,6 +16,15 @@ CREATE TABLE users (
     )
 );
 
+-- Role table for Admins. Names, email and login details live in users,
+-- like community_members and response_coordinators.
+CREATE TABLE admin (
+    admin_id SERIAL PRIMARY KEY,
+    user_id INTEGER UNIQUE NOT NULL
+        REFERENCES users(user_id)
+        ON DELETE CASCADE
+);
+
 CREATE TABLE community_members (
     member_id SERIAL PRIMARY KEY,
     user_id INTEGER UNIQUE NOT NULL

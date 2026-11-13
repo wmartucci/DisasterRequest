@@ -320,11 +320,9 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
                         (user_id, organization),
                     )
             # 2.2 Create the matching row for the user's role
+            # (Public signup rejects "Admin" in main.py; kept so this function stays complete.)
             if role == "Admin":
-                cur.execute("INSERT INTO admin (tel_no, user_id) "
-                        "VALUES (%s, %s) RETURNING *;",
-                        (tel_no, user_id),
-                    )
+                cur.execute("INSERT INTO admin (user_id) VALUES (%s);", (user_id,))
 
         conn.commit()  # saves BOTH rows at once
         return columns, rows

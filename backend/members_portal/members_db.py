@@ -15,9 +15,9 @@ def create_member(user_id, street_address, city, state, tel_no):
     try:
         return db.run_change_returning(
             "INSERT INTO community_members "
-            "(street_address, city, state, tel_no, user_id) "
-            "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-            (street_address, city, state, tel_no, user_id),
+            "(street_address, city, state, user_id) "
+            "VALUES (%s, %s, %s, %s) RETURNING *;",
+            (street_address, city, state, user_id),
         )
     except psycopg2.errors.CheckViolation as e:
         raise db.InvalidTypeError("Phone number must look like 5405551234 or 540-555-1234") from e

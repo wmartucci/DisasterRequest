@@ -9,6 +9,7 @@ from dotenv import load_dotenv
 from . import database as db
 from .email_sender import send_password_reset_email
 from .members_portal import members_gateway as mdb
+from .admin_portal import admin_gateway as adb
 from typing import Literal
 
 import os
@@ -51,6 +52,7 @@ app.add_middleware(
 )
 
 app.include_router(mdb.router)  # Include the members portal router
+app.include_router(adb.router)  # Include the admin portal router
 
 
 # --------- Data model classes ----------
@@ -246,7 +248,13 @@ async def database_configuration_error(_: Request, exc: db.InvalidTypeError):
 # Create new user
 @app.post("/api/signup")
 def create_user(user_details: User):
-    organization = user_details.organization.strip() if user_details.organization else None
+    # Admin accounts are created only from the admin portal (POST /api/admin/users).
+    if user_details.role == "Admin":
+        raise HTTPException(
+            status_code=403,
+            detail="Admin accounts can only be created by an existing admin."
+        )
+    organization =user_details.organization.strip() if user_details.organization else None
     if user_details.role == "Response Coordinator" and not organization:
         raise HTTPException(
             status_code=400,
@@ -381,3 +389,12 @@ def community_member(request: Request):
     if "user_id" not in request.session:
         return RedirectResponse(url="/login", status_code=303)
     return FileResponse("frontend/community-member.html")
+
+# Admin page
+@app.get("/admin")
+def admin_page(request: Request):
+    if "user_id" not in request.session:
+        return RedirectResponse(url="/login", status_code=303)
+    if request.session.get("role") != "Admin":
+        return RedirectResponse(url="/", status_code=303)  # index.html sends them to their own page
+    return FileResponse("frontend/admin.html")
