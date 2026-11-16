@@ -102,12 +102,12 @@ def run_change_returning(sql, params=None):
 #                         DATABASE QUERY FUNCTIONS
 # --------------------------------------------------------------------------------#
 #-----CREATE------------------#
-def create_community_member(user_id, street_address, city, state, tel_no):
+def create_community_member(user_id, street_address, city, state):
     # create a community member profile for an existing users row. Names live in users.
     return run_change_returning(
-        "INSERT INTO community_members (street_address, city, state, tel_no, user_id) "
-        "VALUES (%s, %s, %s, %s, %s) RETURNING *;",
-        (street_address, city, state, tel_no, user_id),
+        "INSERT INTO community_members (street_address, city, state, user_id) "
+        "VALUES (%s, %s, %s, %s) RETURNING *;",
+        (street_address, city, state, user_id),
     )
     
 
@@ -197,7 +197,6 @@ def get_incident_reports():
            i.member_id,
            u.first_name,
            u.last_name,
-           m.tel_no,
            i.type,
            i.address,
            i.city,
@@ -293,7 +292,7 @@ def delete_incident_report(report_id):
 
 
 # ---------- Authentication -------------
-def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, tel_no, email, organization=None):
+def create_user(first_name, last_name, role, username, password_hash, street_address, city, state, email, organization=None):
     conn = get_connection()
     try:
         with conn.cursor() as cur:
@@ -332,7 +331,7 @@ def create_user(first_name, last_name, role, username, password_hash, street_add
         raise DuplicateValueError(f"Username {username} already exists") from e
     except psycopg2.errors.CheckViolation as e:
         conn.rollback()
-        # Name the rule that failed (e.g. member_valid_tel_no), not just "role"
+        # Name the rule that failed (e.g. user_email_format), not just "role"
         raise InvalidTypeError(f"Value breaks the rule '{e.diag.constraint_name}'") from e
     except Exception:
         conn.rollback()  # undo the users row too

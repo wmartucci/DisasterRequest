@@ -62,7 +62,6 @@ export function signup({
     street_address,
     city,
     state,
-    tel_no,
     organization = null,
 }) {
     return requestApi("/api/signup", {
@@ -78,7 +77,6 @@ export function signup({
             street_address,
             city,
             state,
-            tel_no,
             organization,
         }),
     });

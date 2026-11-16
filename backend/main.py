@@ -82,7 +82,6 @@ class User(BaseModel):
     street_address: str
     city: str
     state: str
-    tel_no: str = Field(pattern=r"^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$")
     # Only Response Coordinators enter an organization; other roles send null or omit it.
     organization: str | None = None
 
@@ -279,7 +278,6 @@ def create_user(user_details: User):
         street_address=user_details.street_address,
         city=user_details.city,
         state=user_details.state,
-        tel_no=user_details.tel_no,
         email=user_details.email.strip().lower(),  # stored lowercase so reset lookups match
         organization=organization,
     )

@@ -10,7 +10,7 @@ def find_member_id(user_id):
     return rows[0]["member_id"] if rows else None
 
 
-def create_member(user_id, street_address, city, state, tel_no):
+def create_member(user_id, street_address, city, state):
     # Names live in users; this row only holds the member's contact details.
     try:
         return db.run_change_returning(
@@ -19,11 +19,36 @@ def create_member(user_id, street_address, city, state, tel_no):
             "VALUES (%s, %s, %s, %s) RETURNING *;",
             (street_address, city, state, user_id),
         )
-    except psycopg2.errors.CheckViolation as e:
-        raise db.InvalidTypeError("Phone number must look like 5405551234 or 540-555-1234") from e
     except psycopg2.errors.UniqueViolation as e:
         raise db.DuplicateValueError("This login already has a profile") from e
 
+# Returns info about a member's profile. 
+def get_member_profile(member_id):
+    return db.run_query(
+        """SELECT m.member_id, m.street_address, m.city, m.state,
+                  u.first_name, u.last_name
+           FROM community_members m
+           JOIN users u ON u.user_id = m.user_id
+           WHERE m.member_id = %s;""",
+        (member_id,),
+    )
+
+# Updates a member's profile.
+def update_member_profile(member_id, street_address, city, state, first_name, last_name):
+    # One statement, so both tables change together or not at all.
+    return db.run_change_returning(
+        """WITH u AS (
+               UPDATE users SET first_name = %s, last_name = %s
+               WHERE user_id = (SELECT user_id FROM community_members WHERE member_id = %s)
+               RETURNING first_name, last_name
+           )
+           UPDATE community_members m
+           SET street_address = %s, city = %s, state = %s
+           FROM u
+           WHERE m.member_id = %s
+           RETURNING m.member_id, m.street_address, m.city, m.state, u.first_name, u.last_name;""",
+        (first_name, last_name, member_id, street_address, city, state, member_id),
+    )
 
 def reports_for_member(member_id):
     # Friendly names (coordinator, unit) instead of raw ids.

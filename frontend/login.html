@@ -166,15 +166,6 @@
             </label>
           </div>
 
-          <label>
-            Telephone number
-            <input name="tel_no" type="tel" required
-                   pattern="[0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4}"
-                   placeholder="540-555-0123"
-                   autocomplete="tel-national" aria-describedby="tel-hint" />
-            <span id="tel-hint" class="hint">10 digits, e.g. 5405550123 or 540-555-0123.</span>
-          </label>
-
           <div class="form-actions">
             <button type="submit" class="primary-button">Create account</button>
           </div>
@@ -240,7 +231,6 @@
     };
 
     const $ = (selector) => document.querySelector(selector);
-    const TEL_PATTERN = /^([0-9]{10}|[0-9]{3}-[0-9]{3}-[0-9]{4})$/;
     // something@something.something, no spaces (stricter than the email CHECK in schema.sql)
     const EMAIL_PATTERN = /^[^\s@]+@[^\s@]+\.[^\s@]+$/;
     let busy = false;
@@ -355,7 +345,7 @@
       const data = Object.fromEntries(new FormData(form));
       const textFields = [
         "first_name", "last_name", "user_name", "email",
-        "street_address", "city", "state", "tel_no",
+        "street_address", "city", "state",
       ];
       for (const key of textFields) {
         data[key] = data[key].trim();
@@ -376,12 +366,6 @@
       if (!EMAIL_PATTERN.test(data.email)) {
         showMessage("Enter a valid email address, like name@example.com.", true);
         form.email.focus();
-        return;
-      }
-      // Same rule as the tel_no CHECK constraint in schema.sql
-      if (!TEL_PATTERN.test(data.tel_no)) {
-        showMessage("Enter a 10-digit phone number, like 5405550123 or 540-555-0123.", true);
-        form.tel_no.focus();
         return;
       }
       if (data.password.length < 8) {
@@ -408,7 +392,6 @@
           street_address: data.street_address,
           city: data.city,
           state: data.state,
-          tel_no: data.tel_no,
           organization,
         });
 

@@ -31,12 +31,21 @@ def member_id(user=Depends(logged_in)) -> int:
         raise HTTPException(409, "Finish your profile first")
     return found
 
-
+# Role-based access control
+def require_roles(*allowed_roles):
+    # Returns a dependency that checks if the current user has one of the allowed roles.
+    def check_role(user = Depends(logged_in)):
+        if user["role"] not in allowed_roles:
+            raise HTTPException(
+                status_code=403,
+                detail="Forbidden"
+            )
+        return user
+    return check_role
 # --------------------------------------------------------------------------------#
 # DATA MODEL CLASSES
 # --------------------------------------------------------------------------------#
 class MemberProfile(BaseModel):
-    tel_no: str = Field(min_length=10, max_length=12)
     street_address: str = Field(min_length=1, max_length=300)
     city: str = Field(min_length=1, max_length=100)
     state: str = Field(min_length=1, max_length=100)
@@ -61,6 +70,10 @@ class NewPost(BaseModel):
 class NewComment(BaseModel):
     content: str = Field(min_length=1, max_length=1000)
 
+
+class AccountUpdate(MemberProfile):
+    first_name: str = Field(min_length=1, max_length=100)
+    last_name: str = Field(min_length=1, max_length=100)
 
 
 # --------------------------------------------------------------------------------#
@@ -94,9 +107,21 @@ def create_profile(body: MemberProfile, user=Depends(logged_in)) -> dict:
     parts = [body.street_address.strip(), body.city.strip(), body.state.strip()]
     if not all(parts):
         raise HTTPException(422, "Street address, city and state are required")
-    columns, rows = mdb.create_member(user["user_id"], *parts, body.tel_no.strip())
+    columns, rows = mdb.create_member(user["user_id"], *parts)
     return dict(zip(columns, rows[0]))
 
+@router.get("/api/my-account")
+def my_account(member=Depends(member_id)) -> dict:
+    return mdb.get_member_profile(member)[0]
+
+@router.put("/api/my-account")
+def update_my_account(body: AccountUpdate, member=Depends(member_id)) -> dict:
+    columns, rows = mdb.update_member_profile(
+        member,
+        body.street_address.strip(), body.city.strip(), body.state.strip(),
+        body.first_name.strip(), body.last_name.strip(),
+    )
+    return dict(zip(columns, rows[0]))
 
 @router.get("/api/my-reports")
 def my_reports(member=Depends(member_id)) -> list[dict]:

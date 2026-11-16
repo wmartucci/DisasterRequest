@@ -27,9 +27,8 @@ def test_create_community_member():
         street_address = "123 Main St"
         city = "Anytown"
         state = "CA"
-        tel_no = "800-555-1234"
 
-        columns, rows = database.create_community_member(user_id, street_address, city, state, tel_no)
+        columns, rows = database.create_community_member(user_id, street_address, city, state)
         assert isinstance(columns, list), "Columns should be a list"
         assert isinstance(rows, list), "Rows should be a list"
 

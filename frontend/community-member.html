@@ -96,6 +96,9 @@
 #profile { max-width: 520px; }
 #profile-form label { margin-bottom: 16px; }
 
+/* My account form */
+#my-account-form { max-width: 720px; }
+
 /* Match the coordinator dashboard's blue navigation and light workspace. */
 :root {
   color-scheme: light;
@@ -264,6 +267,7 @@ footer {
       <button data-screen="reports">My Reports</button>
       <button data-screen="report">Report An Incident</button>
       <button data-screen="board">Community Forum</button>
+      <button data-screen="my-account">My Account</button>
 
       <!-- Always visible, so people can sign out even if a page request fails. -->
       <div id="account" class="actor-bar">
@@ -281,7 +285,7 @@ footer {
     <section id="profile" class="panel" aria-labelledby="profile-title" hidden>
       <p class="eyebrow">ONE LAST STEP</p>
       <h2 id="profile-title">Finish your profile.</h2>
-      <p class="muted">Add your address and phone number so coordinators can reach you about your reports.</p>
+      <p class="muted">Add your address so coordinators can reach you about your reports.</p>
       <form id="profile-form">
           <label>
             Street address
@@ -294,10 +298,6 @@ footer {
           <label>
             State
             <input name="state" required maxlength="100" autocomplete="address-level1" />
-          </label>
-          <label>
-            Phone number
-            <input name="tel_no" required maxlength="12" inputmode="tel" placeholder="540-555-1234" autocomplete="tel" />
           </label>
         <button type="submit" class="primary-button">Save and continue</button>
       </form>
@@ -407,6 +407,42 @@ footer {
       <p id="board-count" class="muted" aria-live="polite"></p>
       <ul id="post-list" class="card-list"></ul>
     </section>
+
+    <!-- ============ MY ACCOUNT ============ -->
+    <section id="my-account" class="screen" aria-labelledby="my-account-title" hidden>
+      <p class="eyebrow">04 / MY ACCOUNT</p>
+      <h2 id="my-account-title">Your details.</h2>
+      <p class="muted">Keep your name and address up to date so coordinators can reach you.</p>
+
+      <form id="my-account-form" class="panel">
+        <div class="form-grid">
+          <label>
+            First name
+            <input name="first_name" required maxlength="100" autocomplete="given-name" />
+          </label>
+          <label>
+            Last name
+            <input name="last_name" required maxlength="100" autocomplete="family-name" />
+          </label>
+          <label class="full">
+            Street address
+            <input name="street_address" required maxlength="300" autocomplete="street-address" />
+          </label>
+          <label>
+            City
+            <input name="city" required maxlength="100" autocomplete="address-level2" />
+          </label>
+          <label>
+            State
+            <input name="state" required maxlength="100" autocomplete="address-level1" />
+          </label>
+        </div>
+        <div class="card-actions">
+          <button type="submit" class="primary-button">Save changes</button>
+          <button type="button" id="my-account-reset" class="secondary-button">Discard changes</button>
+        </div>
+      </form>
+    </section>
   </main>
 
   <dialog id="confirm" aria-labelledby="confirm-title">
@@ -473,6 +509,9 @@ const getMyReports = () => request("/api/my-reports");
 const createMyReport = (report) =>
   request("/api/my-reports", { method: "POST", body: report });
 const deleteMyReport = (id) => request(`/api/my-reports/${id}`, { method: "DELETE" });
+const getMyAccount = () => request("/api/my-account");
+const updateMyAccount = (account) =>
+  request("/api/my-account", { method: "PUT", body: account });
 const getPosts = () => request("/api/posts");
 const createPost = (post) => request("/api/posts", { method: "POST", body: post });
 const deletePost = (id) => request(`/api/posts/${id}`, { method: "DELETE" });
@@ -621,7 +660,7 @@ getCurrentUser()
  *
  * Asks the server who is signed in. Sends signed-out people to login.html and
  * people with the wrong role to their own page. If the person has no profile
- * yet (phone, address ...), shows the #profile form and waits until it is saved.
+ * yet (address ...), shows the #profile form and waits until it is saved.
  * Resolves with { first_name, last_name, role } once the page can be used.
  */
 async function startSession({ role, otherPage }) {
@@ -937,6 +976,55 @@ $("#post-form").addEventListener("submit", async (event) => {
 
 $("#board-refresh").addEventListener("click", () => { clearMessages(); loadPosts(); });
 
+// ------------------------------------------------------------------ My account
+const ACCOUNT_FIELDS = ["first_name", "last_name", "street_address", "city", "state"];
+let savedAccount = null;   // last values from the server, used by "Discard changes"
+
+function fillAccountForm(account) {
+  const form = $("#my-account-form");
+  ACCOUNT_FIELDS.forEach((key) => { form[key].value = account[key] ?? ""; });
+}
+
+async function loadAccount() {
+  try {
+    savedAccount = await getMyAccount();
+    fillAccountForm(savedAccount);
+  } catch (error) {
+    message(readableError(error), true);
+  }
+}
+
+$("#my-account-form").addEventListener("submit", async (event) => {
+  event.preventDefault();
+  const form = event.currentTarget;
+  const submit = form.querySelector("[type=submit]");
+  submit.disabled = true;
+
+  const ok = await attempt(async () => {
+    const data = {};
+    for (const key of ACCOUNT_FIELDS) {
+      data[key] = form[key].value.trim();
+      if (!data[key]) {
+        form[key].focus();
+        throw Error(`${key.replace("_", " ").replace(/^./, (c) => c.toUpperCase())} cannot be blank.`);
+      }
+    }
+    savedAccount = await updateMyAccount(data);
+  }, "Your account was updated.");
+
+  submit.disabled = false;
+  if (ok) {
+    fillAccountForm(savedAccount);
+    $("#account-name").textContent = `${savedAccount.first_name} ${savedAccount.last_name}`;
+    loadPosts();   // posts and comments show the author's name
+  }
+});
+
+$("#my-account-reset").addEventListener("click", () => {
+  clearMessages();
+  if (savedAccount) fillAccountForm(savedAccount);
+});
+
 // --------------------------------------------------------------------- Start up
 document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
   button.addEventListener("click", () => {
@@ -948,6 +1036,7 @@ document.querySelectorAll(".navigation [data-screen]").forEach((button) => {
 function refreshAll() {
   loadReports();
   loadPosts();
+  loadAccount();
 }
 
 async function start() {
